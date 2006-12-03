@@ -31,9 +31,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "d:\isapi\ldapsdk\include\ldap.h"
-#include "d:\isapi\ldapsdk\include\ldap_ssl.h"
-#include "d:\isapi\ldapsdk\include\lber.h"
+#include ".\ldapcsdk\include\ldap.h"
+#include ".\ldapcsdk\include\ldap_ssl.h"
+#include ".\ldapcsdk\include\lber.h"
 #include "ldapauth.h"
 
 
