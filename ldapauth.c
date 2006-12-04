@@ -1,27 +1,27 @@
 /*++
 
-	Released under LGPL.
+	IIS LDAP Authentication Module
+	Copyright 2006 Inflection Technology, LLC
+	For more information, visit http://www.inflectiontech.com.
 
-	Some portions Copyright (c) 1996  Microsoft Corporation
-	This program is released into the public domain for any purpose.
+	Released under LGPL terms.
 
+	Some portions Copyright Salvador Salanova Fortmann.
+	Some portions Copyright Microsoft Corporation.
 
-	Module Name:
+	File Name:	ldapauth.c
 
-    ldapauth.c
-
-	Abstract:
-
-    LDAP authentication module for IIS.
+	Abstract:	LDAP authentication module for IIS, main routine.
 
   	Modification History:
 
-    2002-11-24 ramr
+	2006-12-04 ramr
+	Import into SourceForge CVS. Refer to CVS log for modification history.
 
+    2002-11-24 ramr
     Now denies blank passwords. (disable by removing the ifdef)
 
 	2002-04-22 ramr
-
     Cleaned up LDAP code, added non-SSL support.
 
 --*/
@@ -33,6 +33,8 @@
 //
 // Functions
 //
+
+HANDLE	hEventLog = NULL;
 
 BOOL
 WINAPI
@@ -125,7 +127,7 @@ GetFilterVersion(
                      SF_NOTIFY_LOG                |
                      SF_NOTIFY_ORDER_HIGH);
 
-    strcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 1.1." );
+    strcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 2.0a1" );
 
     return TRUE;
 }

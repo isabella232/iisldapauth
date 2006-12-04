@@ -1,18 +1,20 @@
 /*++
 
-Copyright (c) 1996  Microsoft Corporation
+	IIS LDAP Authentication Module
+	Copyright 2006 Inflection Technology, LLC
+	For more information, visit http://www.inflectiontech.com.
 
-This program is released into the public domain for any purpose.
+	Released under LGPL terms.
 
+	Some portions Copyright Salvador Salanova Fortmann.
+	Some portions Copyright Microsoft Corporation.
 
-Module Name:
+	File Name:	ldapauth.h
 
-    authfilt.h
+	Abstract:
+    Contains header information and definitions for the LDAP auth filter.
 
-Abstract:
-
-    This module contains the common definitions for the authentication filter
-    sample
+	Modification History:
 
 --*/
 
@@ -20,6 +22,7 @@ Abstract:
 #define _AUTHFILT_H_
 #include <stdlib.h>
 #include <stdio.h>
+#include <windows.h>
 
 //
 //  Constants
@@ -123,6 +126,7 @@ TerminateCache(
 
 UINT64
 GetSystemTime100ns( VOID );
+
 
 #endif  /* LDAP_CACHE */
 

@@ -1,25 +1,27 @@
-/*++
+/*
 
-	Released under LGPL.
+	IIS LDAP Authentication Module
+	Copyright 2006 Inflection Technology, LLC
+	For more information, visit http://www.inflectiontech.com.
 
-	Some portions Copyright (c) 1996  Microsoft Corporation
-	This program is released into the public domain for any purpose.
+	Released under LGPL terms.
 
+	Some portions Copyright Salvador Salanova Fortmann.
+	Some portions Copyright Microsoft Corporation.
 
-	Module Name:
-
-    cache.c
+	File Name:  cache.c
 
 	Abstract:
-
     This module implements a simple user cache.  The cached users are kept
     in an LRU sorted list.  If there will be a large number of simultaneous
     users, then a sorted array would be more appropriate.
 
   	Modification History:
 
-	2002-04-22 ramr
+	2006-12-04 ramr
+	Import into SourceForge CVS. Refer to CVS log for modification history.
 
+	2002-04-22 ramr
     Made the cache actually work. Still sucks, need a real search/key
 	algorithm like radix tree, etc. Since I only have a 1000 users,
 	I really don't care.

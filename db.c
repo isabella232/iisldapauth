@@ -1,27 +1,28 @@
 /*
 
-	Released under LGPL.
+	IIS LDAP Authentication Module
+	Copyright 2006 Inflection Technology, LLC
+	For more information, visit http://www.inflectiontech.com.
 
-	Some portions Copyright (c) 1996  Microsoft Corporation
-	This program is released into the public domain for any purpose.
+	Released under LGPL terms.
 
+	Some portions Copyright Salvador Salanova Fortmann.
+	Some portions Copyright Microsoft Corporation.
 
-	Module Name:	
-	
-	db.c
+	File Name:	db.c
 
-	Abstract:
-
-    This module implements the database routines for the authentication filter.
+	Abstract:	
+	This module implements the database routines for the authentication filter.
 
 	Modification History:
 
-    2002-11-24 ramr
+	2006-12-04 ramr
+	Import into SourceForge CVS. Refer to CVS log for modification history.
 
+    2002-11-24 ramr
     Changed config file parsing to support comments.
 
 	2002-04-22 ramr
-
     Cleaned up LDAP code, added non-SSL support.
 
 */
@@ -37,7 +38,7 @@
 #include "ldapauth.h"
 
 
-#define MODULE_CONF_FILE		"c:\\winnt\\ldapauth.ini"
+#define MODULE_CONF_FILE		"\\ldapauth.ini"	//  Include beginning backslashes
 #define DEFAULTUID				"uid"
 #define MAXSTRLEN				1024
 
@@ -70,17 +71,32 @@ Return Value:
 
 --*/
 {
-    FILE *f							= 0; 
-	char achLine[MAXSTRLEN]			= "";
-	char achToken[MAXSTRLEN]		= "";
-	char achParam[MAXSTRLEN]		= "";
-	char achRawParam[MAXSTRLEN]		= "";
-	int	intParamIndex				= 0;
-	int intParamLen 				= 0;
+    FILE *f								= 0; 
+	char achLine[MAXSTRLEN]				= "";
+	char achToken[MAXSTRLEN]			= "";
+	char achParam[MAXSTRLEN]			= "";
+	char achRawParam[MAXSTRLEN]			= "";
+	char achSystemRoot[MAXSTRLEN]		= "";
+	char achConfigFilePath[MAXSTRLEN]	= "";
+	int	intParamIndex					= 0;
+	int intParamLen 					= 0;
 
 	DebugWrite("[InitializeUserDatabase] Entering InitializeUserDatabase().\n");
 
-	f = fopen( MODULE_CONF_FILE,"r" );             
+	//  First determine the Windows System Root directory.
+	//  On Windows NT this was C:\winnt. On Windows XP or later
+	//  it could be C:\windows.
+	if ( GetEnvironmentVariableA( "SystemRoot", achSystemRoot, MAXSTRLEN ) )
+	{
+		strncat( achConfigFilePath, achSystemRoot, MAXSTRLEN );
+		strncat( achConfigFilePath, MODULE_CONF_FILE, MAXSTRLEN );
+	}
+	else
+	{
+		return FALSE;
+	}
+
+	f = fopen( achConfigFilePath, "r" );             
     
 	if ( !f )
 	{
