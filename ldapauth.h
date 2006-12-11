@@ -25,12 +25,15 @@
 #include <string.h>
 #include <windows.h>
 #include <httpfilt.h>
-
 #include "string_safe.h"
 
 /*
     Constants
 */
+
+#define MAXSTRLEN			1024
+#define MODULE_CONF_FILE	"\\ldapauth.ini"	/*  Include beginning backslash  */
+#define DEFAULTUID			"uid"
 
 #define ISWHITE( ch )      ((ch) && ((ch) == ' ' || (ch) == '\t' ||  \
                             (ch) == '\n' || (ch) == '\r'))
@@ -67,6 +70,8 @@ typedef struct
 
 /*	Database routines	*/
 
+
+
 BOOL
 ValidateUser(
     CHAR * pszUserName,
@@ -94,40 +99,8 @@ LDAPDB_Terminate(
     );
 
 /*  Cache routines  */
-
 #ifdef LDAP_CACHE
-
-BOOL
-Cache_Initialize(
-    const UINT32 kuliCacheSize,
-	const UINT32 kuliCacheTime
-    );
-
-BOOL
-Cache_GetUser(
-    CHAR * pszUserName,
-	BOOL * pfFound,
-    CHAR * pszPassword,
-    CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
-    );
-
-BOOL
-Cache_AddUser(
-    CHAR * pszUserName,
-    CHAR * pszPassword,
-    CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
-    );
-
-VOID
-Cache_Terminate(
-    VOID
-    );
-
-UINT64
-GetSystemTime100ns( VOID );
-
+#include "cache.h"
 #endif  /* LDAP_CACHE */
 
 #endif /* _IISLDAPAUTH_H_ */
