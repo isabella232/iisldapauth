@@ -32,23 +32,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
+#include "string_safe.h"
 #include "cache.h"
-
-/*
-	CONSTANTS
-
-    MAX_CACHED_USERS: The maximum number of users we will cache.  Change 
-	this number if a large amount of simultaneous users are expected. If 
-	the cache fills up, new users will not be cached.
-
-	MAX_CACHE_TIME: Time limit until the cache entry is considered invalid.
-*/
-
-#define DEFAULT_CACHE_USERS     500
-#define DEFAULT_CACHE_TIME		1800		/* 30 minutes */
-#define MAX_CACHE_USERS			10000
-#define MAX_CACHE_TIME			604800		/* 1 week */
-#define HUNDRED_NS_FRACTION 	10000000
 
 /*
     GLOBALS
@@ -92,6 +77,9 @@ Return Value:
         goto exception;
 	}
 
+    InitializeCriticalSection( &gsCacheLock );
+	EnterCriticalSection( &gsCacheLock );
+
 	guliCacheSize = kuliCacheSize;
 	guliCacheTime = kuliCacheTime;
 
@@ -109,14 +97,14 @@ Return Value:
 		guliCacheTime = DEFAULT_CACHE_TIME;
 	}
 
-    InitializeCriticalSection( &gsCacheLock );
-
     gpCache = LocalAlloc( LPTR, sizeof(SUSER_CACHE) * guliCacheSize );
 
 	if ( gpCache != NULL )
 	{
 		gfCacheInitialized = TRUE;
 	}
+
+	LeaveCriticalSection( &gsCacheLock );
 
 exception:
     return gfCacheInitialized;
@@ -155,18 +143,38 @@ Return Value:
 
 --*/
 {
-	BOOL	fResult		= FALSE;
-	BOOL	fFound		= FALSE;
-	UINT32	uliIndex	= 0;
-	UINT32	uliSeconds	= 0;
-	UINT64	ulliCurTime	= 0;
-	UINT64	ulliDelta	= 0;
-    
+	BOOL	fResult				= FALSE;
+	BOOL	fFound				= FALSE;
+	UINT32	uliIndex			= 0;
+	UINT32	uliSeconds			= 0;
+	UINT64	ulliCurTime			= 0;
+	UINT64	ulliDelta			= 0;
+  
+    EnterCriticalSection( &gsCacheLock );
+
+	/*
+        Check our parameters before adding them to the cache
+    */
+	if ( !(pszUserName != NULL &&
+		pfFound != NULL &&
+		pszPassword != NULL &&
+		pszNTUser != NULL &&
+		pszNTUserPassword != NULL) )
+	{
+        goto exception;
+	}
+
+    if ( strlen(pszUserName) > SF_MAX_USERNAME ||
+         strlen(pszPassword) > SF_MAX_PASSWORD ||
+         strlen(pszNTUser) > SF_MAX_USERNAME ||
+         strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
+    {
+        goto exception;
+    }
+
 	/*
         Search the cache for the specified user
     */
-
-    EnterCriticalSection( &gsCacheLock );
 
 	*pfFound = FALSE;
 
@@ -204,7 +212,6 @@ Return Value:
 
 	if ( !fFound )
 	{	
-		LeaveCriticalSection( &gsCacheLock );
 	}
 	else
 	{
@@ -216,8 +223,6 @@ Return Value:
 		strlcpy( pszNTUserPassword, gpCache[uliIndex].m_achNTUserPassword, SF_MAX_PASSWORD );
 
 		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
-
-		LeaveCriticalSection( &gsCacheLock );
 		
 		*pfFound = TRUE;
 	}
@@ -225,6 +230,7 @@ Return Value:
 	fResult = TRUE;
 
 exception:
+	LeaveCriticalSection( &gsCacheLock );
 	return ( fResult );
 }
 
@@ -240,7 +246,8 @@ Cache_AddUser(
 
 Routine Description:
 
-    Adds the specified user to the cache
+    Adds the specified user to the cache. This function does NOT
+	check if a user is already in the cache.
 
 Arguments:
 
@@ -257,31 +264,35 @@ Return Value:
 {
 	BOOL	fResult						= FALSE;
 	BOOL	fFound						= FALSE;
-	CHAR	achNTUser[SF_MAX_USERNAME]	= "";
-    CHAR	achNTPass[SF_MAX_PASSWORD]	= "";
 	UINT32  uliIndex					= 0;
 	UINT64	ulliCurTime					= 0;
 	
+	EnterCriticalSection( &gsCacheLock );
+
 	/*
         Check our parameters before adding them to the cache
     */
+	if ( !(pszUserName != NULL &&
+		pszPassword != NULL &&
+		pszNTUser != NULL &&
+		pszNTUserPassword != NULL) )
+	{
+        goto exception;
+	}
 
     if ( strlen(pszUserName) > SF_MAX_USERNAME ||
          strlen(pszPassword) > SF_MAX_PASSWORD ||
          strlen(pszNTUser) > SF_MAX_USERNAME ||
          strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
     {
-        SetLastError( ERROR_INVALID_PARAMETER );
         goto exception;
     }
 
     /*
-        Search the cache for the specified user to 
-		make sure there are no duplicates
+        Find the first "free" record. This could
+		either be one past the current item count or
+		an expired record.
     */
-
-    EnterCriticalSection( &gsCacheLock );
-
 	ulliCurTime = GetSystemTime100ns();
 
 	while ( uliIndex < guliCacheItems )
@@ -291,7 +302,7 @@ Return Value:
 			break;
 		}
 
-		if ( ((ulliCurTime - gpCache[uliIndex].m_lliTimestamp) / HUNDRED_NS_FRACTION) > MAX_CACHE_TIME )
+		if ( ((ulliCurTime - gpCache[uliIndex].m_lliTimestamp) / HUNDRED_NS_FRACTION) > guliCacheTime )
 		{
 			break;
 		}
@@ -299,7 +310,7 @@ Return Value:
 		uliIndex++;
 	}
 
-	if ( uliIndex == guliCacheItems && guliCacheItems < guliCacheSize )
+	if ( (uliIndex == guliCacheItems) && (guliCacheItems < guliCacheSize) )
 	{	
 		guliCacheItems++;
 	}
@@ -315,11 +326,17 @@ Return Value:
 		strlcpy( gpCache[uliIndex].m_achNTUserPassword, pszNTUserPassword, SF_MAX_PASSWORD );
 		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
 	}
+	else
+	{
+		/*  Cache is full!  */
+		fResult = FALSE;
+		goto exception;
+	}
 
-	LeaveCriticalSection( &gsCacheLock );
 	fResult = TRUE;
 
 exception:
+	LeaveCriticalSection( &gsCacheLock );
     return ( fResult );
 }
 
@@ -340,21 +357,22 @@ Return Value:
 
 --*/
 {
-    if ( !gfCacheInitialized )
+
+	if ( !gfCacheInitialized )
 	{
         return;
 	}
 
-    EnterCriticalSection( &gsCacheLock );
+	EnterCriticalSection( &gsCacheLock );
 
 	LocalFree( gpCache );
 	gpCache = NULL;
     guliCacheItems = 0;
 
+    gfCacheInitialized = FALSE;
+
     LeaveCriticalSection( &gsCacheLock );
     DeleteCriticalSection( &gsCacheLock );
-
-    gfCacheInitialized = FALSE;
 }
 
 
