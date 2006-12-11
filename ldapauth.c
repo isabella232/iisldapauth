@@ -64,7 +64,7 @@ DllMain(
 			if ( !LDAPDB_Initialize() )
 			{
 				DebugWrite("[GetFilterVersion] Database initialization failed.\n");
-				return FALSE;
+				return( FALSE );
 			}
 
 			/*
@@ -88,7 +88,7 @@ DllMain(
         break;
     }  
 
-    return TRUE;
+    return( TRUE );
 }  
 
 
@@ -129,7 +129,7 @@ GetFilterVersion(
 
     strlcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 2.0a1", SF_MAX_FILTER_DESC_LEN );
 
-    return TRUE;
+    return( TRUE );
 }
 
 
@@ -186,7 +186,7 @@ Return Value:
 				    chain
 				*/
 
-				return SF_STATUS_REQ_NEXT_NOTIFICATION;
+				return( SF_STATUS_REQ_NEXT_NOTIFICATION );
 			}
 
 			/*
@@ -204,7 +204,7 @@ Return Value:
 			{
 				DebugWrite( "[OnAuthentication] Error validating user.\n" );		
 				SetLastError( ERROR_ACCESS_DENIED );      
-				return SF_STATUS_REQ_ERROR;
+				return( SF_STATUS_REQ_ERROR );
 			}
 			     
 			if ( !fAllowed )
@@ -214,7 +214,7 @@ Return Value:
 				*/
 
 				SetLastError( ERROR_ACCESS_DENIED );
-				return SF_STATUS_REQ_ERROR;
+				return( SF_STATUS_REQ_ERROR );
 			}
 
 			/*
@@ -234,7 +234,7 @@ Return Value:
 				if ( !pfc->pFilterContext )
 				{
 					SetLastError( ERROR_NOT_ENOUGH_MEMORY );
-					return SF_STATUS_REQ_ERROR;
+					return( SF_STATUS_REQ_ERROR );
 				}
 			}
 			else
@@ -246,7 +246,7 @@ Return Value:
 			strlcpy( pContextData->szLogEntry, achLDAPUser, SF_MAX_USERNAME );
 			pContextData->iLength = strlen ( achLDAPUser );
 
-			return SF_STATUS_REQ_HANDLED_NOTIFICATION;
+			return( SF_STATUS_REQ_HANDLED_NOTIFICATION );
 	break;
 
     case SF_NOTIFY_LOG:
@@ -270,7 +270,7 @@ Return Value:
 			pLog->pszClientUserName = pContextData->szLogEntry;
 		} 
 
-        return SF_STATUS_REQ_NEXT_NOTIFICATION;
+        return( SF_STATUS_REQ_NEXT_NOTIFICATION );
 	break;
 
     default:
@@ -278,7 +278,7 @@ Return Value:
     break;
     }
 
-    return SF_STATUS_REQ_NEXT_NOTIFICATION;
+    return( SF_STATUS_REQ_NEXT_NOTIFICATION );
 }
 
 
@@ -328,7 +328,7 @@ Return Value:
 
 	if ( !strcmp(pszPassword, "") )
 	{
-		return FALSE;
+		return( FALSE );
 	}
 #endif
 
@@ -338,7 +338,7 @@ Return Value:
     if ( !stricmp(pszUserName, "bstdba") )
 	{
 		*pfValid = TRUE;
-		return TRUE;
+		return( TRUE );
 	}
 #endif
 
@@ -354,7 +354,7 @@ Return Value:
 		if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword) )
 		{
 			DebugWrite( "[ValidateUser] LookupUserInCache() failed.\n" );
-			return FALSE;
+			return( FALSE );
 		}
 	}
 
@@ -365,7 +365,7 @@ Return Value:
         if ( !LDAPDB_GetUser( pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword ))
         {
 			DebugWrite("[ValidateUser] LookupUserInDb() failed.\n");
-            return FALSE;
+            return( FALSE );
         }
 		
 		if ( fFound )
@@ -396,8 +396,8 @@ Return Value:
 		DebugWrite("\n");
 
         *pfValid = TRUE;
-		return TRUE;
+		return( TRUE );
     }
 	
-    return FALSE;
+    return( FALSE );
 }
