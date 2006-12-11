@@ -23,7 +23,6 @@
 #ifndef _STRL_FUNCTIONS_
 #define _STRL_FUNCTIONS_
 
-
 size_t
 strlcpy(
 		char *dst, 

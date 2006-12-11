@@ -20,9 +20,8 @@
 
 --*/
 
-#include "ldapauth.h"
-
-#ifdef STRL_FUNCTIONS
+#include <string.h>
+#include "string_safe.h"
 
 size_t
 strlcpy(
@@ -67,5 +66,3 @@ strlcat(
 
 	return (dst_size + copy_size);
 }
-
-#endif /* STRL_FUNCTIONS */
