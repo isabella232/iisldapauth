@@ -134,8 +134,8 @@ Return Value:
 
 BOOL
 Cache_GetUser(
-	BOOL * pfFound,
     CHAR * pszUserName,
+	BOOL * pfFound,
     CHAR * pszPassword,
     CHAR * pszNTUser,
     CHAR * pszNTUserPassword
