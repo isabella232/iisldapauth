@@ -26,13 +26,7 @@
 
 --*/
 
-#include <windows.h>
-#include <httpfilt.h>
 #include "ldapauth.h"
-
-//
-// Functions
-//
 
 HANDLE	hEventLog = NULL;
 
@@ -60,31 +54,22 @@ DllMain(
  Return Value:
 
     Returns TRUE is successful; otherwise FALSE is returned.
+
 --*/
 {
-    BOOL fReturn = TRUE;
-
-    switch (fdwReason )
+    switch ( fdwReason )
     {
 		case DLL_PROCESS_ATTACH:
 
-			if ( !InitializeUserDatabase() )
+			if ( !LDAPDB_Initialize() )
 			{
 				DebugWrite("[GetFilterVersion] Database initialization failed.\n");
 				return FALSE;
 			}
 
-#ifdef LDAP_CACHE
-			if ( !InitializeCache() )
-			{
-				DebugWrite("[GetFilterVersion] Cache initialization failed.\n");
-				return FALSE;
-			}
-#endif /* LDAP_CACHE */
-
-			//
-			//  We don't care about thread attach/detach notifications
-			//
+			/*
+			    We don't care about thread attach/detach notifications
+			*/
 
 			DisableThreadLibraryCalls( hinstDll );
 
@@ -93,33 +78,48 @@ DllMain(
 		case DLL_PROCESS_DETACH:
 
 #ifdef LDAP_CACHE
-			TerminateCache();
+			Cache_Terminate();
 #endif /* LDAP_CACHE */
 
-			TerminateUserDatabase();
+			LDAPDB_Terminate();
         break;
 
 		default:
         break;
     }  
 
-    return fReturn;
+    return TRUE;
 }  
 
 
+/*++
+
+Routine Description:
+
+    Returns ISAPI Filter Information
+
+Arguments:
+
+    pVer			IIS Version Structure
+
+Return Value:
+
+    Returns TRUE is successful; otherwise FALSE is returned.
+
+--*/
 BOOL
 WINAPI
 GetFilterVersion(
-    HTTP_FILTER_VERSION * pVer
+	HTTP_FILTER_VERSION * pVer
     )
 {
     DebugWrite("[GetFilterVersion] Server filter version is\n");
 
     pVer->dwFilterVersion = HTTP_FILTER_REVISION;
 
-    //
-    //  Specify the types and order of notification
-    //
+    /*
+        Specify the types and order of notification
+    */
 
     pVer->dwFlags = (SF_NOTIFY_SECURE_PORT        |
                      SF_NOTIFY_NONSECURE_PORT     |
@@ -127,7 +127,7 @@ GetFilterVersion(
                      SF_NOTIFY_LOG                |
                      SF_NOTIFY_ORDER_HIGH);
 
-    strcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 2.0a1" );
+    strlcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 2.0a1", SF_MAX_FILTER_DESC_LEN );
 
     return TRUE;
 }
@@ -158,16 +158,16 @@ Return Value:
 
 --*/
 {
-    BOOL					fAllowed					= 0;
-    CHAR					achLDAPUser[SF_MAX_USERNAME]= "";
-    HTTP_FILTER_AUTHENT		*pAuth						= 0;
-    HTTP_FILTER_LOG			*pLog						= 0;
-    CHAR					*pchLogEntry				= 0;
-	LDAP_AUTH_CONTEXT		*pContextData				= 0; 
+    BOOL					fAllowed						= 0;
+    CHAR					achLDAPUser[SF_MAX_USERNAME]	= "";
+    CHAR					*pchLogEntry					= 0;
+	HTTP_FILTER_AUTHENT		*pAuth							= 0;
+    HTTP_FILTER_LOG			*pLog							= 0;
+	LDAP_AUTH_CONTEXT		*pContextData					= 0; 
  	
-    //
-    //  Handle this notification
-    //
+    /*
+        Handle this notification
+    */
 
     switch ( NotificationType )
     {
@@ -175,61 +175,57 @@ Return Value:
 
 			pAuth = (HTTP_FILTER_AUTHENT *) pvData;
 
-			//
-			//  Ignore the anonymous user
-			//
+			/*
+			    Ignore the anonymous user
+			*/
 
 			if ( !*pAuth->pszUser )
 			{
-				//
-				//  Tell the server to notify any subsequent notifications in the
-				//  chain
-				//
+				/*
+				    Tell the server to notify any subsequent notifications in the
+				    chain
+				*/
 
 				return SF_STATUS_REQ_NEXT_NOTIFICATION;
 			}
 
-			//
-			//  Save the unmapped username so we can log it later
-			//
+			/*
+			    Save the unmapped username so we can log it later
+			*/
 
-			strcpy( achLDAPUser, pAuth->pszUser );
+			strlcpy( achLDAPUser, pAuth->pszUser, SF_MAX_USERNAME );
 
-			//
-			//  Make sure this user is a valid user and map to the appropriate
-			//  Windows NT user
-			//
+			/*
+			    Make sure this user is a valid user and map to the appropriate
+			    Windows NT user
+			*/
 
-			if ( !ValidateUser( pAuth->pszUser,
-								pAuth->pszPassword,
-								&fAllowed ))
+			if ( !ValidateUser(pAuth->pszUser, pAuth->pszPassword, &fAllowed) )
 			{
 				DebugWrite( "[OnAuthentication] Error validating user.\n" );		
 				SetLastError( ERROR_ACCESS_DENIED );      
 				return SF_STATUS_REQ_ERROR;
 			}
-			
-			DebugWrite("[OnAuthentication] Hem validat usuari ok o no\n");
-        
+			     
 			if ( !fAllowed )
 			{
-				//
-				//  This user isn't allowed access.  Indicate this to the server
-				//
+				/*
+				    This user isn't allowed access.  Indicate this to the server
+				*/
 
 				SetLastError( ERROR_ACCESS_DENIED );
 				return SF_STATUS_REQ_ERROR;
 			}
 
-			//
-			//  Save the unmapped user name so we can log it later on.  We allocate
-			//  enough space for two usernames so we can use this memory block
-			//  for logging.  Note we may have already allocated it from a previous
-			//  request on this TCP session
-			//
+			/*
+			    Save the unmapped user name so we can log it later on.  We allocate
+			    enough space for two usernames so we can use this memory block
+			    for logging.  Note we may have already allocated it from a previous
+			    request on this TCP session
 
-			//  FilterContext is used to pass information back to the IIS logging
-			//  subsystem. It must remain allocated and valid between notifications.
+			    FilterContext is used to pass information back to the IIS logging
+			    subsystem. It must remain allocated and valid between notifications.
+			*/
 
 			if ( !pfc->pFilterContext )
 			{
@@ -247,7 +243,7 @@ Return Value:
 			}
 
 			pContextData = pfc->pFilterContext;
-			strcpy( pContextData->szLogEntry, achLDAPUser );
+			strlcpy( pContextData->szLogEntry, achLDAPUser, SF_MAX_USERNAME );
 			pContextData->iLength = strlen ( achLDAPUser );
 
 			return SF_STATUS_REQ_HANDLED_NOTIFICATION;
@@ -255,11 +251,11 @@ Return Value:
 
     case SF_NOTIFY_LOG:
 
-        //
-        //  The unmapped username is in pFilterContext if this filter
-        //  authenticated this user. FilterContext must be allocated
-		//  and valid until the next notification.
-        //
+        /*
+            The unmapped username is in pFilterContext if this filter
+            authenticated this user. FilterContext must be allocated
+		    and valid until the next notification.
+        */
 
 		if ( pfc->pFilterContext )
 		{
@@ -315,18 +311,20 @@ Return Value:
 {
     BOOL fFound								= 0;
     CHAR achNTUser[SF_MAX_USERNAME]			= "";
-    CHAR achNTUserPassword[SF_MAX_PASSWORD]	= "";
+    CHAR m_achNTUserPassword[SF_MAX_PASSWORD]	= "";
 
-    //
-    //  Assume we're going to fail validation
-    //
+    /*
+        Assume we're going to fail validation
+    */
 
     *pfValid = FALSE;
 	fFound=FALSE;
 
 #ifdef DENYBLANKPASSWORDS
-	//  The Netware eDir server will incorrect allow user to authenticate
-	//  as anonymous if you pass a zero-length password.
+	/*  
+		The Netware eDir server will incorrect allow user to authenticate
+	    as anonymous if you pass a zero-length password.
+	*/
 
 	if ( !strcmp(pszPassword, "") )
 	{
@@ -344,16 +342,16 @@ Return Value:
 	}
 #endif
 
-	//
-    //  Lookup the user in the cache, if that fails, get the user from the
-    //  database and add the retrieved user to the cache
-    //
+	/*
+        Lookup the user in the cache, if that fails, get the user from the
+        database and add the retrieved user to the cache
+    */
 
 #ifdef LDAP_CACHE
 
     if ( !fFound )
 	{
-		if ( !LookupUserInCache(pszUserName, &fFound, pszPassword, achNTUser, achNTUserPassword) )
+		if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword) )
 		{
 			DebugWrite( "[ValidateUser] LookupUserInCache() failed.\n" );
 			return FALSE;
@@ -364,7 +362,7 @@ Return Value:
 
     if ( !fFound )
     {
-        if ( !LookupUserInDb( pszUserName, &fFound, pszPassword, achNTUser, achNTUserPassword ))
+        if ( !LDAPDB_GetUser( pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword ))
         {
 			DebugWrite("[ValidateUser] LookupUserInDb() failed.\n");
             return FALSE;
@@ -373,7 +371,7 @@ Return Value:
 		if ( fFound )
         {
 			#ifdef LDAP_CACHE
-            AddUserToCache( pszUserName, pszPassword, achNTUser, achNTUserPassword );
+            Cache_AddUser( pszUserName, pszPassword, achNTUser, m_achNTUserPassword );
 			#endif /* LDAP_CACHE */
         }
     }
@@ -381,16 +379,15 @@ Return Value:
     if ( !fFound )
     {
         DebugWrite("[ValidateUser] Failed to find user.\n");
-        return FALSE;
     }
 	else
     {
-        //
-        //  We have a match, map to the NT user and password
-        //
+        /*
+            We have a match, map to the NT user and password
+        */
 
-        strcpy( pszUserName, achNTUser );
-        strcpy( pszPassword, achNTUserPassword );
+        strlcpy( pszUserName, achNTUser, SF_MAX_USERNAME );
+        strlcpy( pszPassword, m_achNTUserPassword, SF_MAX_PASSWORD );
 
 		DebugWrite("[ValidateUser] Si hem trobat l'usuari\n");
 		DebugWrite(pszUserName);
@@ -402,6 +399,5 @@ Return Value:
 		return TRUE;
     }
 	
-	DebugWrite("[ValidateUser] No hem trobat l'usuari\n");
     return FALSE;
 }
