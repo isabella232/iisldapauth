@@ -28,72 +28,62 @@
 
 --*/
 
-#include <windows.h>
-#include <httpfilt.h>
-
 #include "ldapauth.h"
 
-//
-// Constants
-//
+/*
+   Constants
+*/
 
-//
-//  The maximum number of users we will cache.  If there will be a large number
-//  of simultaneous users, bump this value
-//
+/*
+    MAX_CACHED_USERS: The maximum number of users we will cache.  Change 
+	this number if a large amount of simultaneous users are expected. If 
+	the cache fills up, new users will not be cached.
 
-#define MAX_CACHED_USERS        500
-#define MAX_CACHE_TIME			1800
+	MAX_CACHE_TIME: Time limit until the cache entry is considered invalid.
+*/
+
+#define DEFAULT_CACHE_USERS     500
+#define DEFAULT_CACHE_TIME		1800		/* 30 minutes */
+#define MAX_CACHE_USERS			10000
+#define MAX_CACHE_TIME			604800		/* 1 week */
 #define HUNDRED_NS_FRACTION 	10000000
 
-//
-//  Cached user structure
-//
+/*
+    Cached user structure
+*/
 
-typedef struct USER_CACHE
+typedef struct SUSER_CACHE
 {
-    CHAR	achUserName[SF_MAX_USERNAME];   // External username and password
-    CHAR	achPassword[SF_MAX_PASSWORD];
+    CHAR	m_achUserName[SF_MAX_USERNAME];		/* External username and password */
+    CHAR	m_achPassword[SF_MAX_PASSWORD];
+    CHAR	m_achNTUserName[SF_MAX_USERNAME];	/* Mapped NT account and password */
+    CHAR	m_achNTUserPassword[SF_MAX_PASSWORD];
+	UINT64	m_lliTimestamp;						/* Cache entry timestamp */
+} SUSER_CACHE, *PUSER_CACHE;
 
-    CHAR	achNTUserName[SF_MAX_USERNAME]; // NT account and password to map user to
-    CHAR	achNTUserPassword[SF_MAX_PASSWORD];
+/*
+    Globals
 
-	UINT64	llTimestamp;
-} USER_CACHE, *PUSER_CACHE;
+	gfCacheInitialized	- Indicates whether we are initialized
+	guliCacheItems		- Number of items in the cache
+	guliCacheSize		- Maximum number of user records in cache
+	guliCacheTime		- Maximum lifetime (in seconds) for a cache entry
+	gpCache				- Circular double linked list of cached users
+	gsCacheLock			- Critical section protects cache list
+*/
 
-
-//
-//  Globals
-//
-
-//
-//  Circular double linked list of cached users
-//
-
-USER_CACHE *pCache;
-
-//
-//  Critical section protects cache list
-//
-
-CRITICAL_SECTION csCacheLock;
-
-//
-//  Indicates whether we are initialized
-//
-
-BOOL fCacheInitialized = FALSE;
-
-//
-//  Number of items in the cache
-//
-
-unsigned long cCacheItems = 0;
+BOOL				gfCacheInitialized	= FALSE;
+UINT32				guliCacheItems		= 0;
+UINT32				guliCacheSize		= 0;
+UINT32				guliCacheTime		= 0;
+SUSER_CACHE			*gpCache			= NULL;
+CRITICAL_SECTION	gsCacheLock			= {0};
 
 
 BOOL
-InitializeCache(
-    VOID
+Cache_Initialize(
+    const UINT32 kuliCacheSize,
+	const UINT32 kuliCacheTime
     )
 /*++
 
@@ -107,28 +97,45 @@ Return Value:
 
 --*/
 {
-    if ( fCacheInitialized )
+    if ( gfCacheInitialized )
 	{
-        return fCacheInitialized;
+        return gfCacheInitialized;
 	}
 
-    InitializeCriticalSection( &csCacheLock );
+	guliCacheSize = kuliCacheSize;
+	guliCacheTime = kuliCacheTime;
 
-    pCache = LocalAlloc( LPTR, sizeof(USER_CACHE) * MAX_CACHED_USERS );
-
-	if ( pCache != NULL )
+	/*  Force some sane values.  */
+	if ( 
+		guliCacheSize > MAX_CACHE_USERS || 
+		guliCacheSize < DEFAULT_CACHE_USERS 
+	   )
 	{
-		fCacheInitialized = TRUE;
+		guliCacheSize = DEFAULT_CACHE_USERS;
 	}
 
-    return fCacheInitialized;
+	if ( guliCacheTime > MAX_CACHE_TIME )
+	{
+		guliCacheTime = DEFAULT_CACHE_TIME;
+	}
+
+    InitializeCriticalSection( &gsCacheLock );
+
+    gpCache = LocalAlloc( LPTR, sizeof(SUSER_CACHE) * guliCacheSize );
+
+	if ( gpCache != NULL )
+	{
+		gfCacheInitialized = TRUE;
+	}
+
+    return gfCacheInitialized;
 }
 
 
 BOOL
-LookupUserInCache(
+Cache_GetUser(
+	BOOL * pfFound,
     CHAR * pszUserName,
-    BOOL * pfFound,
     CHAR * pszPassword,
     CHAR * pszNTUser,
     CHAR * pszNTUserPassword
@@ -142,11 +149,11 @@ Routine Description:
 
 Arguments:
 
-    pszUserName - Case insensitive username to find
-    pfFound     - Set to TRUE if the specified user was found
-    pszPassword - Receives password for specified user if found
-    pszNTUser   - Receives the NT Username to map this user to
-    pszNTUserPassword - Receives the NT Password for pszNTUser
+    pszUserName			- Case insensitive username to find
+    pfFound				- Set to TRUE if the specified user was found
+    pszPassword			- Receives password for specified user if found
+    pszNTUser			- Receives the NT Username to map this user to
+    pszNTUserPassword	- Receives the NT Password for pszNTUser
 
     Note: pszPassword and pszNTUserPassword must be at least SF_MAX_PASSWORD
     characters.  pszNTUser must be at least SF_MAX_USERNAME characters.
@@ -157,37 +164,35 @@ Return Value:
 
 --*/
 {
-	unsigned long	lIndex		= 0;
-    USER_CACHE		*pUser		= 0;
-    DWORD			cPosition	= 0;
-	DWORD			lSeconds	= 0;
-	BOOL			fFound		= FALSE;
-	UINT64			llCurTime	= 0;
-	UINT64			llDelta		= 0;
+	BOOL	fFound		= FALSE;
+	UINT32	uliIndex	= 0;
+	UINT32	uliSeconds	= 0;
+	UINT64	ulliCurTime	= 0;
+	UINT64	ulliDelta	= 0;
+    
+	/*
+        Search the cache for the specified user
+    */
 
-    //
-    //  Search the cache for the specified user
-    //
-
-    EnterCriticalSection( &csCacheLock );
+    EnterCriticalSection( &gsCacheLock );
 
 	*pfFound = FALSE;
 
-	llCurTime = GetSystemTime100ns();
+	ulliCurTime = GetSystemTime100ns();
 
-    while ( (lIndex < cCacheItems) && (!fFound) )
+    while ( (uliIndex < guliCacheItems) && (!fFound) )
 	{
-        if ( !stricmp(pszUserName, pCache[lIndex].achUserName) ) 
+        if ( !stricmp(pszUserName, gpCache[uliIndex].m_achUserName) ) 
 		{
-			if ( !stricmp(pszPassword, pCache[lIndex].achPassword) )
+			if ( !stricmp(pszPassword, gpCache[uliIndex].m_achPassword) )
 			{
-				llDelta = llCurTime - pCache[lIndex].llTimestamp;
+				ulliDelta = ulliCurTime - gpCache[uliIndex].m_lliTimestamp;
 				
-				lSeconds = (UINT32)(llDelta / HUNDRED_NS_FRACTION);
+				uliSeconds = (UINT32)(ulliDelta / HUNDRED_NS_FRACTION);
 				
-				if ( lSeconds > MAX_CACHE_TIME )
+				if ( uliSeconds > guliCacheTime )
 				{
-					pCache[lIndex].llTimestamp = 0;
+					gpCache[uliIndex].m_lliTimestamp = 0;
 					break;
 				}
 
@@ -195,34 +200,34 @@ Return Value:
 			}
 			else
 			{
-				pCache[lIndex].llTimestamp = 0;
+				gpCache[uliIndex].m_lliTimestamp = 0;
 				break;				
 			}
 		}
 		else
 		{	
-			lIndex++;
+			uliIndex++;
 		}
 	}
 
 	if ( !fFound )
 	{	
-		LeaveCriticalSection( &csCacheLock );
+		LeaveCriticalSection( &gsCacheLock );
 		return TRUE;
 	}
 	else
 	{
-		//
-		//  Copy out the user properties
-		//
+		/*
+		    Copy out the user properties
+		*/
 
-		strcpy( pszPassword,       pCache[lIndex].achPassword );
-		strcpy( pszNTUser,         pCache[lIndex].achNTUserName );
-		strcpy( pszNTUserPassword, pCache[lIndex].achNTUserPassword );
+		strlcpy( pszPassword,       gpCache[uliIndex].m_achPassword, SF_MAX_PASSWORD );
+		strlcpy( pszNTUser,         gpCache[uliIndex].m_achNTUserName, SF_MAX_USERNAME );
+		strlcpy( pszNTUserPassword, gpCache[uliIndex].m_achNTUserPassword, SF_MAX_PASSWORD );
 
-		pCache[lIndex].llTimestamp = llCurTime;
+		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
 
-		LeaveCriticalSection( &csCacheLock );
+		LeaveCriticalSection( &gsCacheLock );
 		
 		*pfFound = TRUE;
 
@@ -234,7 +239,7 @@ Return Value:
 
 
 BOOL
-AddUserToCache(
+Cache_AddUser(
     CHAR * pszUserName,
     CHAR * pszPassword,
     CHAR * pszNTUser,
@@ -248,10 +253,10 @@ Routine Description:
 
 Arguments:
 
-    pszUserName - Username to add
-    pszPassword - Contains the external password for this user
-    pszNTUser   - Contains the NT user name to use for this user
-    pszNTUserPassword - Contains the password for NTUser
+    pszUserName			- Username to add
+    pszPassword			- Contains the external password for this user
+    pszNTUser			- Contains the NT user name to use for this user
+    pszNTUserPassword	- Contains the password for gach_config_ntuser
 
 Return Value:
 
@@ -259,76 +264,75 @@ Return Value:
 
 --*/
 {
-
 	BOOL	fFound						= FALSE;
-	UINT32  lIndex				= 0;
 	CHAR	achNTUser[SF_MAX_USERNAME]	= "";
     CHAR	achNTPass[SF_MAX_PASSWORD]	= "";
-	UINT64	llCurTime					= 0;
-	//
-    //  Check our parameters before adding them to the cache
-    //
+	UINT32  uliIndex					= 0;
+	UINT64	ulliCurTime					= 0;
+	
+	/*
+        Check our parameters before adding them to the cache
+    */
 
-    if ( strlen( pszUserName ) > SF_MAX_USERNAME ||
-         strlen( pszPassword ) > SF_MAX_PASSWORD ||
-         strlen( pszNTUser   ) > SF_MAX_USERNAME ||
-         strlen( pszNTUserPassword ) > SF_MAX_PASSWORD )
+    if ( strlen(pszUserName) > SF_MAX_USERNAME ||
+         strlen(pszPassword) > SF_MAX_PASSWORD ||
+         strlen(pszNTUser) > SF_MAX_USERNAME ||
+         strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
     {
         SetLastError( ERROR_INVALID_PARAMETER );
         return FALSE;
     }
 
-    //
-    //  Search the cache for the specified user to make sure there are no
-    //  duplicates
-    //
+    /*
+        Search the cache for the specified user to 
+		make sure there are no duplicates
+    */
 
-    EnterCriticalSection( &csCacheLock );
+    EnterCriticalSection( &gsCacheLock );
 
-	llCurTime = GetSystemTime100ns();
+	ulliCurTime = GetSystemTime100ns();
 
-	while ( lIndex < cCacheItems )
+	while ( uliIndex < guliCacheItems )
 	{
-		if ( pCache[lIndex].llTimestamp == 0 )
+		if ( gpCache[uliIndex].m_lliTimestamp == 0 )
 		{
 			break;
 		}
 
-		if ( ((llCurTime - pCache[lIndex].llTimestamp) / HUNDRED_NS_FRACTION) > MAX_CACHE_TIME )
+		if ( ((ulliCurTime - gpCache[uliIndex].m_lliTimestamp) / HUNDRED_NS_FRACTION) > MAX_CACHE_TIME )
 		{
 			break;
 		}
 
-		lIndex++;
+		uliIndex++;
 	}
 
-	if ( lIndex == cCacheItems && cCacheItems < MAX_CACHED_USERS )
+	if ( uliIndex == guliCacheItems && guliCacheItems < guliCacheSize )
 	{	
-		cCacheItems++;
+		guliCacheItems++;
 	}
 
-	if ( lIndex < cCacheItems )
+	if ( uliIndex < guliCacheItems )
 	{
+		/*
+		    Set the various fields
+		*/
 
-		//
-		//  Set the various fields
-		//
-
-		strcpy( pCache[lIndex].achUserName,       pszUserName );
-		strcpy( pCache[lIndex].achPassword,       pszPassword );
-		strcpy( pCache[lIndex].achNTUserName,     pszNTUser );
-		strcpy( pCache[lIndex].achNTUserPassword, pszNTUserPassword );
-		pCache[lIndex].llTimestamp = llCurTime;
+		strlcpy( gpCache[uliIndex].m_achUserName, pszUserName, SF_MAX_USERNAME );
+		strlcpy( gpCache[uliIndex].m_achPassword, pszPassword, SF_MAX_PASSWORD );
+		strlcpy( gpCache[uliIndex].m_achNTUserName, pszNTUser, SF_MAX_USERNAME );
+		strlcpy( gpCache[uliIndex].m_achNTUserPassword, pszNTUserPassword, SF_MAX_PASSWORD );
+		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
 	}
 
-	LeaveCriticalSection( &csCacheLock );
+	LeaveCriticalSection( &gsCacheLock );
 
     return TRUE;
 }
 
 
 VOID
-TerminateCache(
+Cache_Terminate(
     VOID
     )
 /*++
@@ -339,22 +343,21 @@ Routine Description:
 
 --*/
 {
-    if ( !fCacheInitialized )
+    if ( !gfCacheInitialized )
 	{
         return;
 	}
 
-    EnterCriticalSection( &csCacheLock );
+    EnterCriticalSection( &gsCacheLock );
 
-	LocalFree( pCache );
-	pCache = NULL;
-    cCacheItems = 0;
+	LocalFree( gpCache );
+	gpCache = NULL;
+    guliCacheItems = 0;
 
-    LeaveCriticalSection( &csCacheLock );
+    LeaveCriticalSection( &gsCacheLock );
+    DeleteCriticalSection( &gsCacheLock );
 
-    DeleteCriticalSection( &csCacheLock );
-
-    fCacheInitialized = FALSE;
+    gfCacheInitialized = FALSE;
 }
 
 
