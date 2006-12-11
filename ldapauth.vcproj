@@ -161,6 +161,9 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath=".\cache.h">
+		</File>
+		<File
 			RelativePath="db.c">
 			<FileConfiguration
 				Name="Release|Win32">
