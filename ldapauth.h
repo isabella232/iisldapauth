@@ -18,15 +18,19 @@
 
 --*/
 
-#ifndef _AUTHFILT_H_
-#define _AUTHFILT_H_
+#ifndef _IISLDAPAUTH_H_
+#define _IISLDAPAUTH_H_
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <windows.h>
+#include <httpfilt.h>
 
-//
-//  Constants
-//
+#include "string_safe.h"
+
+/*
+    Constants
+*/
 
 #define ISWHITE( ch )      ((ch) && ((ch) == ' ' || (ch) == '\t' ||  \
                             (ch) == '\n' || (ch) == '\r'))
@@ -45,9 +49,9 @@
 #endif
 
 
-#define DENYBLANKPASSWORDS 1
-#define BSTENTERPRISEHACK 1
-#define LDAP_CACHE 1
+#define DENYBLANKPASSWORDS	1
+#define BSTENTERPRISEHACK	1
+#define LDAP_CACHE			1
 
 
 typedef struct
@@ -57,18 +61,11 @@ typedef struct
 } LDAP_AUTH_CONTEXT; 
 
 
-//
-//  Prototypes
-//
+/*
+	Prototypes
+*/
 
-//
-//  Database routines
-//
-
-BOOL
-InitializeUserDatabase(
-    VOID
-    );
+/*	Database routines	*/
 
 BOOL
 ValidateUser(
@@ -78,7 +75,12 @@ ValidateUser(
     );
 
 BOOL
-LookupUserInDb(
+LDAPDB_Initialize(
+    VOID
+    );
+
+BOOL
+LDAPDB_GetUser(
     IN CHAR * pszUser,
     OUT BOOL * pfFound,
     OUT CHAR * pszPassword,
@@ -87,32 +89,31 @@ LookupUserInDb(
     );
 
 VOID
-TerminateUserDatabase(
+LDAPDB_Terminate(
     VOID
     );
 
-//
-//  Cache routines
-//
+/*  Cache routines  */
 
 #ifdef LDAP_CACHE
 
 BOOL
-InitializeCache(
-    VOID
+Cache_Initialize(
+    const UINT32 kuliCacheSize,
+	const UINT32 kuliCacheTime
     );
 
 BOOL
-LookupUserInCache(
+Cache_GetUser(
+	BOOL * pfFound,
     CHAR * pszUserName,
-    BOOL * pfFound,
     CHAR * pszPassword,
     CHAR * pszNTUser,
     CHAR * pszNTUserPassword
     );
 
 BOOL
-AddUserToCache(
+Cache_AddUser(
     CHAR * pszUserName,
     CHAR * pszPassword,
     CHAR * pszNTUser,
@@ -120,14 +121,13 @@ AddUserToCache(
     );
 
 VOID
-TerminateCache(
+Cache_Terminate(
     VOID
     );
 
 UINT64
 GetSystemTime100ns( VOID );
 
-
 #endif  /* LDAP_CACHE */
 
-#endif //_AUTHFILT_H_
+#endif /* _IISLDAPAUTH_H_ */
