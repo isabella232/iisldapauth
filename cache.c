@@ -28,13 +28,15 @@
 
 --*/
 
-#include "ldapauth.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <windows.h>
+#include "cache.h"
 
 /*
-   Constants
-*/
+	CONSTANTS
 
-/*
     MAX_CACHED_USERS: The maximum number of users we will cache.  Change 
 	this number if a large amount of simultaneous users are expected. If 
 	the cache fills up, new users will not be cached.
@@ -49,20 +51,7 @@
 #define HUNDRED_NS_FRACTION 	10000000
 
 /*
-    Cached user structure
-*/
-
-typedef struct SUSER_CACHE
-{
-    CHAR	m_achUserName[SF_MAX_USERNAME];		/* External username and password */
-    CHAR	m_achPassword[SF_MAX_PASSWORD];
-    CHAR	m_achNTUserName[SF_MAX_USERNAME];	/* Mapped NT account and password */
-    CHAR	m_achNTUserPassword[SF_MAX_PASSWORD];
-	UINT64	m_lliTimestamp;						/* Cache entry timestamp */
-} SUSER_CACHE, *PUSER_CACHE;
-
-/*
-    Globals
+    GLOBALS
 
 	gfCacheInitialized	- Indicates whether we are initialized
 	guliCacheItems		- Number of items in the cache
@@ -99,7 +88,8 @@ Return Value:
 {
     if ( gfCacheInitialized )
 	{
-        return gfCacheInitialized;
+		/*  get out of here  */
+        goto exception;
 	}
 
 	guliCacheSize = kuliCacheSize;
@@ -128,6 +118,7 @@ Return Value:
 		gfCacheInitialized = TRUE;
 	}
 
+exception:
     return gfCacheInitialized;
 }
 
@@ -164,6 +155,7 @@ Return Value:
 
 --*/
 {
+	BOOL	fResult		= FALSE;
 	BOOL	fFound		= FALSE;
 	UINT32	uliIndex	= 0;
 	UINT32	uliSeconds	= 0;
@@ -213,14 +205,12 @@ Return Value:
 	if ( !fFound )
 	{	
 		LeaveCriticalSection( &gsCacheLock );
-		return TRUE;
 	}
 	else
 	{
 		/*
 		    Copy out the user properties
 		*/
-
 		strlcpy( pszPassword,       gpCache[uliIndex].m_achPassword, SF_MAX_PASSWORD );
 		strlcpy( pszNTUser,         gpCache[uliIndex].m_achNTUserName, SF_MAX_USERNAME );
 		strlcpy( pszNTUserPassword, gpCache[uliIndex].m_achNTUserPassword, SF_MAX_PASSWORD );
@@ -230,11 +220,12 @@ Return Value:
 		LeaveCriticalSection( &gsCacheLock );
 		
 		*pfFound = TRUE;
-
-		return TRUE;
 	}
 	
-	return FALSE;
+	fResult = TRUE;
+
+exception:
+	return ( fResult );
 }
 
 
@@ -264,6 +255,7 @@ Return Value:
 
 --*/
 {
+	BOOL	fResult						= FALSE;
 	BOOL	fFound						= FALSE;
 	CHAR	achNTUser[SF_MAX_USERNAME]	= "";
     CHAR	achNTPass[SF_MAX_PASSWORD]	= "";
@@ -280,7 +272,7 @@ Return Value:
          strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
     {
         SetLastError( ERROR_INVALID_PARAMETER );
-        return FALSE;
+        goto exception;
     }
 
     /*
@@ -317,7 +309,6 @@ Return Value:
 		/*
 		    Set the various fields
 		*/
-
 		strlcpy( gpCache[uliIndex].m_achUserName, pszUserName, SF_MAX_USERNAME );
 		strlcpy( gpCache[uliIndex].m_achPassword, pszPassword, SF_MAX_PASSWORD );
 		strlcpy( gpCache[uliIndex].m_achNTUserName, pszNTUser, SF_MAX_USERNAME );
@@ -326,8 +317,10 @@ Return Value:
 	}
 
 	LeaveCriticalSection( &gsCacheLock );
+	fResult = TRUE;
 
-    return TRUE;
+exception:
+    return ( fResult );
 }
 
 
@@ -340,6 +333,10 @@ Cache_Terminate(
 Routine Description:
 
     Terminates the cache module and frees any allocated memory
+
+Return Value:
+	
+	None.
 
 --*/
 {
@@ -363,16 +360,43 @@ Routine Description:
 
 UINT64
 GetSystemTime100ns( VOID )
+/*++
+
+Routine Description:
+
+    Returns time in UINT64.
+
+	From MSDN:
+
+	It is not recommended that you add and subtract values from 
+	the SYSTEMTIME structure to obtain relative times. Instead, 
+	you should
+
+    * Convert the SYSTEMTIME structure to a FILETIME structure.
+    * Copy the resulting FILETIME structure to a ULARGE_INTEGER structure.
+    * Use normal 64-bit arithmetic on the ULARGE_INTEGER value.
+
+	The system can periodically refresh the time by synchronizing 
+	with a time source. Because the system time can be adjusted either 
+	forward or backward, do not compare system time readings to determine 
+	elapsed time. Instead, use one of the methods described in Windows Time.
+
+Return Value:
+
+    UINT64 containing time in 100ns increments
+
+--*/
 {
 	SYSTEMTIME		sSystemTime = { 0 };
 	FILETIME		sFileTime	= { 0 };
-	UINT64			llResult	= 0;
+	UINT64			ullResult	= 0;
 
 	GetLocalTime ( &sSystemTime );
 	SystemTimeToFileTime( &sSystemTime, &sFileTime );
 
-	llResult = (((UINT64)sFileTime.dwHighDateTime) << 32);
-	llResult += sFileTime.dwLowDateTime;
+	/*  Stuff high/low words into UINT64  */
+	ullResult = (((UINT64)sFileTime.dwHighDateTime) << 32);
+	ullResult += sFileTime.dwLowDateTime;
 
-	return llResult;
+	return ullResult;
 }
