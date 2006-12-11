@@ -26,9 +26,19 @@
 #define _IISLDAPAUTHCACHE_H_
 #include <httpfilt.h>
 
+/*
+	CONSTANTS
+
+    MAX_CACHED_USERS: The maximum number of users we will cache.  Change 
+	this number if a large amount of simultaneous users are expected. If 
+	the cache fills up, new users will not be cached.
+
+	MAX_CACHE_TIME: Time limit until the cache entry is considered invalid.
+*/
+
 #define DEFAULT_CACHE_USERS     500
 #define DEFAULT_CACHE_TIME		1800		/* 30 minutes */
-#define MAX_CACHE_USERS			10000
+#define MAX_CACHE_USERS			5000
 #define MAX_CACHE_TIME			604800		/* 1 week */
 #define HUNDRED_NS_FRACTION 	10000000
 
