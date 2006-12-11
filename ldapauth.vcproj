@@ -207,6 +207,12 @@
 		<File
 			RelativePath=".\ldapcsdk\lib\nsldapssl32v50.lib">
 		</File>
+		<File
+			RelativePath=".\string_safe.c">
+		</File>
+		<File
+			RelativePath=".\string_safe.h">
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
