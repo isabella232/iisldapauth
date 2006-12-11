@@ -84,6 +84,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="&quot;.\novell-cldap\Win32\inc\&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
@@ -202,10 +203,13 @@
 			RelativePath="ldapauth.h">
 		</File>
 		<File
-			RelativePath=".\ldapcsdk\lib\nsldap32v50.lib">
+			RelativePath=".\novell-cldap\Win32\lib\mscvc\LDAPSDK.LIB">
 		</File>
 		<File
-			RelativePath=".\ldapcsdk\lib\nsldapssl32v50.lib">
+			RelativePath=".\novell-cldap\Win32\lib\mscvc\LDAPSSL.LIB">
+		</File>
+		<File
+			RelativePath=".\novell-cldap\Win32\lib\mscvc\LDAPX.LIB">
 		</File>
 		<File
 			RelativePath=".\string_safe.c">
