@@ -27,43 +27,41 @@
 
 */
 
-#include <windows.h>
-#include <httpfilt.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include ".\ldapcsdk\include\ldap.h"
 #include ".\ldapcsdk\include\ldap_ssl.h"
 #include ".\ldapcsdk\include\lber.h"
 #include "ldapauth.h"
 
 
-#define MODULE_CONF_FILE		"\\ldapauth.ini"	//  Include beginning backslashes
+#define MODULE_CONF_FILE		"\\ldapauth.ini"	/*  Include beginning backslash  */
 #define DEFAULTUID				"uid"
 #define MAXSTRLEN				1024
 
 
-int  PORTNUMBER;
-char BINDUSER[MAXSTRLEN];
-char BINDPASSWORD[MAXSTRLEN];
-char LDAPHOST[MAXSTRLEN];
-char LDAPFILTER[MAXSTRLEN];
-char LDAPUID[MAXSTRLEN];
-char SEARCHBASE[MAXSTRLEN];
-char CERTSFILE[MAXSTRLEN];
-char NTUSER[MAXSTRLEN];
-char NTUSERPASSWORD[MAXSTRLEN];
-
+INT16	gi_config_ldapport						= 0;
+CHAR	gach_config_binduser[MAXSTRLEN]			= "";
+CHAR	gach_config_bindpassword[MAXSTRLEN]		= "";
+CHAR	gach_config_ldaphost[MAXSTRLEN]			= "";
+CHAR	gach_config_ldapfilter[MAXSTRLEN]		= "";
+CHAR	gach_config_ldapuid[MAXSTRLEN]			= "";
+CHAR	gach_config_searchbase[MAXSTRLEN]		= "";
+CHAR	gach_config_certsfile[MAXSTRLEN]		= "";
+CHAR	gach_config_ntuser[MAXSTRLEN]			= "";
+CHAR	gach_config_ntuserpassword[MAXSTRLEN]	= "";
+#ifdef LDAP_CACHE
+UINT32	guli_config_cachesize					= 0;
+UINT32	guli_config_cachetime					= 0;
+#endif
 
 BOOL
-InitializeUserDatabase(
+LDAPDB_Initialize(
     VOID
     )
 /*++
 
 Routine Description:
 
-    Reads winnt\ldapauth.ini for configuration values.
+	Reads %SYSTEMROOT%\ldapauth.ini for configuration values.
 
 Return Value:
 
@@ -71,195 +69,217 @@ Return Value:
 
 --*/
 {
-    FILE *f								= 0; 
-	char achLine[MAXSTRLEN]				= "";
-	char achToken[MAXSTRLEN]			= "";
-	char achParam[MAXSTRLEN]			= "";
-	char achRawParam[MAXSTRLEN]			= "";
-	char achSystemRoot[MAXSTRLEN]		= "";
-	char achConfigFilePath[MAXSTRLEN]	= "";
-	int	intParamIndex					= 0;
-	int intParamLen 					= 0;
+    FILE	*pfs							= 0; 
+	CHAR	achLine[MAXSTRLEN]				= "";
+	CHAR	achToken[MAXSTRLEN]				= "";
+	CHAR	achParam[MAXSTRLEN]				= "";
+	CHAR	achRawParam[MAXSTRLEN]			= "";
+	CHAR	achSystemRoot[MAXSTRLEN]		= "";
+	CHAR	achConfigFilePath[MAXSTRLEN]	= "";
+	INT32	liParamIndex					= 0;
+	INT32	liParamLen 						= 0;
 
-	DebugWrite("[InitializeUserDatabase] Entering InitializeUserDatabase().\n");
+	DebugWrite("[LDAPDB_Initialize] Entering LDAPDB_Initialize().\n");
 
-	//  First determine the Windows System Root directory.
-	//  On Windows NT this was C:\winnt. On Windows XP or later
-	//  it could be C:\windows.
+	/*
+	    First determine the Windows System Root directory.
+	    On Windows NT this was C:\winnt. On Windows XP or later
+	    it could be C:\windows.
+	*/
+
 	if ( GetEnvironmentVariableA( "SystemRoot", achSystemRoot, MAXSTRLEN ) )
 	{
-		strncat( achConfigFilePath, achSystemRoot, MAXSTRLEN );
-		strncat( achConfigFilePath, MODULE_CONF_FILE, MAXSTRLEN );
+		strlcat( achConfigFilePath, achSystemRoot, MAXSTRLEN );
+		strlcat( achConfigFilePath, MODULE_CONF_FILE, MAXSTRLEN );
 	}
 	else
 	{
 		return FALSE;
 	}
 
-	f = fopen( achConfigFilePath, "r" );             
+	pfs = fopen( achConfigFilePath, "r" );             
     
-	if ( !f )
+	if ( !pfs )
 	{
-		DebugWrite("[InitializeUserDatabase] Error opening configuration file.\n");
+		DebugWrite("[LDAPDB_Initialize] Error opening configuration file.\n");
 		return FALSE;
 	}
 
-	strcpy( BINDUSER, "" );
-	strcpy( BINDPASSWORD, "" );
-	strcpy( LDAPHOST, "" );
-	strcpy( LDAPFILTER, "" );
-	strcpy( LDAPUID, "" );
-	strcpy( BINDUSER, "" );
-	strcpy( SEARCHBASE, "" );
-	strcpy( CERTSFILE, "" );
-	strcpy( NTUSER, "" );
-	strcpy( NTUSERPASSWORD, "" );
-
-    while ( ! feof(f) )
+    while ( ! feof(pfs) )
 	{
-		fgets( achLine, MAXSTRLEN, f );
+		fgets( achLine, MAXSTRLEN, pfs );
 
-		if ( achLine[0] == '!' ) 
+		/* Skip comment lines */
+		if ( achLine[0] == '!' || achLine[0] == '\'' || achLine[0] == '#' ) 
 		{
-			//  skip comment lines
 			continue;
 		}
 		
-		sscanf( achLine,"%s %s", achToken, achRawParam );               
+		/*  Assumption: Since achLine is < MAX_STRING_LEN, achToken & achRawParam are okay  */
+		sscanf( achLine, "%s %s", achToken, achRawParam );               
 		
-		DebugWrite( "[InitializeUserDatabase] ldapauth.ini line:" );
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini line:" );
 		DebugWrite( achLine );
 		DebugWrite( "\n" );
 
-		intParamIndex = 0;
-		intParamLen = strlen( achRawParam );
+		liParamIndex = 0;
+		liParamLen = strlen( achRawParam );
 		
-		if ( intParamLen == 0 )
+		if ( liParamLen == 0 )
 		{
 			continue;
 		}
 		else
 		{
-			strcpy( achParam, achRawParam );
+			strlcpy( achParam, achRawParam, MAXSTRLEN );
 		}
 
-		while (intParamIndex < intParamLen)
+		/*
+			Substitute underscores for spaces
+		*/
+
+		while ( liParamIndex < liParamLen )
 		{
-			if ( achParam[intParamIndex]=='_' )
+			if ( achParam[liParamIndex]=='_' )
 			{
-				achParam[intParamIndex]=' ';
+				achParam[liParamIndex]=' ';
 			}
 
-			intParamIndex++;
+			liParamIndex++;
 		}
 
-		if ( !strcmp(achToken,"BINDUSER") )
+		/*
+			Check for configuration tokens
+		*/
+
+		if ( !stricmp(achToken,"BINDUSER") )
 		{
-			strcpy( BINDUSER, achParam );
+			strlcpy( gach_config_binduser, achParam, MAXSTRLEN );
 		}
 		
-		if ( !strcmp(achToken,"BINDPASSWORD") )
+		if ( !stricmp(achToken,"BINDPASSWORD") )
 		{
-			strcpy( BINDPASSWORD, achParam );
+			strlcpy( gach_config_bindpassword, achParam, MAXSTRLEN );
 		}
 		
-		if ( !strcmp(achToken,"LDAPHOST") )
+		if ( !stricmp(achToken,"LDAPHOST") )
 		{
-			strcpy( LDAPHOST, achParam );
+			strlcpy( gach_config_ldaphost, achParam, MAXSTRLEN );
 		}
 
-		if ( !strcmp(achToken,"LDAPPORT") )
+		if ( !stricmp(achToken,"LDAPPORT") )
 		{
-			PORTNUMBER = atoi( achParam );
+			gi_config_ldapport = (INT16)atoi( achParam );
 		}
 
-		if ( !strcmp(achToken,"LDAPFILTER") )
+		if ( !stricmp(achToken,"LDAPFILTER") )
 		{
-			strcpy( LDAPFILTER, achParam );
+			strlcpy( gach_config_ldapfilter, achParam, MAXSTRLEN );
 		}
 
-		if ( !strcmp(achToken,"LDAPUID") )
+		if ( !stricmp(achToken,"LDAPUID") )
 		{
-			strcpy( LDAPUID, achParam );
+			strlcpy( gach_config_ldapuid, achParam, MAXSTRLEN );
 		}
 
-		if ( !strcmp(achToken,"SEARCHBASE") )
+		if ( !stricmp(achToken,"SEARCHBASE") )
 		{
-			strcpy( SEARCHBASE, achParam );
+			strlcpy( gach_config_searchbase, achParam, MAXSTRLEN );
 		}
 		
-		if ( !strcmp(achToken,"CERTSFILE") )
+		if ( !stricmp(achToken,"CERTSFILE") )
 		{
-			strcpy( CERTSFILE, achParam );
+			strlcpy( gach_config_certsfile, achParam, MAXSTRLEN );
 		}
 		
-		if ( !strcmp(achToken,"NTUSER"))
+		if ( !stricmp(achToken,"NTUSER"))
 		{
-			strcpy( NTUSER, achParam );
+			strlcpy( gach_config_ntuser, achParam, MAXSTRLEN );
 		}
 		
-		if ( !strcmp(achToken,"NTUSERPASSWORD") )
+		if ( !stricmp(achToken,"NTUSERPASSWORD") )
 		{
-			strcpy( NTUSERPASSWORD, achParam );
+			strlcpy( gach_config_ntuserpassword, achParam, MAXSTRLEN );
+		}
+
+		if ( !stricmp(achToken,"NTPASSWORD") )
+		{
+			strlcpy( gach_config_ntuserpassword, achParam, MAXSTRLEN );
+		}
+
+		if ( !stricmp(achToken,"CACHESIZE") )
+		{
+			guli_config_cachesize = atoi( achParam );
+		}
+
+		if ( !stricmp(achToken,"CACHETIME") )
+		{
+			guli_config_cachetime = atoi( achParam );
 		}
 	}
 
-	if ( !strcmp(LDAPHOST,"") )
+	fclose( pfs );  
+
+	if ( !strcmp(gach_config_ldaphost,"") )
 	{
-		fclose( f );        
-		DebugWrite("[InitializeUserDatabase] ldapauth.ini: No LDAPHOST specified.\n");
+		DebugWrite("[LDAPDB_Initialize] ldapauth.ini: No LDAPHOST specified.\n");
 		return FALSE;
 	}
 
-	if ( !strcmp(SEARCHBASE,"") )
-	{
-		fclose( f );        
-		DebugWrite("[InitializeUserDatabase] ldapauth.ini: No SEARCHBASE specified.\n");
+	if ( !strcmp(gach_config_searchbase,"") )
+	{      
+		DebugWrite("[LDAPDB_Initialize] ldapauth.ini: No SEARCHBASE specified.\n");
 		return FALSE;
 	}
 	
-	if ( !strcmp(LDAPFILTER,"") )
-	{
-		fclose( f );        
-		DebugWrite("[InitializeUserDatabase] ldapauth.ini: No LDAPFILTER specified.\n");
+	if ( !strcmp(gach_config_ldapfilter,"") )
+	{     
+		DebugWrite("[LDAPDB_Initialize] ldapauth.ini: No LDAPFILTER specified.\n");
 		return FALSE;
 	}
 
-	if ( !strcmp(NTUSER,"") )
+	if ( !strcmp(gach_config_ntuser,"") )
 	{  
-		DebugWrite("[InitializeUserDatabase] ldapauth.ini: No NTUSER specified.\n");	
+		DebugWrite("[LDAPDB_Initialize] ldapauth.ini: No NTUSER specified.\n");	
 	}
 
-	//  if a user did not specify a CERTSFILE or LDAPPORT, make sure
+	//  if a user did not specify a gach_config_certsfile or LDAPPORT, make sure
 	//  the default port is set correctly
 
-	if ( !strcmp(CERTSFILE,"") )
+	if ( !strcmp(gach_config_certsfile,"") )
 	{	    
-		DebugWrite("[InitializeUserDatabase] ldapauth.ini: No CERTSFILE specified.\n");	
+		DebugWrite("[LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified.\n");	
 	
-		if ( PORTNUMBER == 0 )
+		if ( gi_config_ldapport == 0 )
 		{
-			PORTNUMBER = LDAP_PORT;
+			gi_config_ldapport = LDAP_PORT;
 		}
 	}
-	else if ( PORTNUMBER == 0 )
+	else if ( gi_config_ldapport == 0 )
 	{
-		PORTNUMBER = LDAPS_PORT;
+		gi_config_ldapport = LDAPS_PORT;
 	}
 
-	if ( !strcmp(LDAPUID, "") )
+	if ( !strcmp(gach_config_ldapuid, "") )
 	{
 		/*  set default LDAP UID object if none specified  */
-		strcpy( LDAPUID, DEFAULTUID );
+		strlcpy( gach_config_ldapuid, DEFAULTUID, MAXSTRLEN );
 	}
 
-	fclose( f );        
+	#ifdef LDAP_CACHE
+	if ( !Cache_Initialize(guli_config_cachesize, guli_config_cachetime) )
+	{
+		DebugWrite("[LDAPDB_Initialize] Cache initialization failed.\n");
+		return FALSE;
+	}
+	#endif /* LDAP_CACHE */
+
 	return TRUE;
 }
 
 
 BOOL
-LookupUserInDb(
+LDAPDB_GetUser(
     IN CHAR * pszUser,
     OUT BOOL * pfFound,
     IN CHAR * pszPassword,
@@ -285,7 +305,7 @@ Arguments:
                   at least SF_MAX_PASSWORD bytes.
     pszNTUser   - The NT username associated with this user, Buffer must be at
                   least SF_MAX_USERNAME bytes
-    pszNTUserPassword - The password for NTUser. Buffer must be at least
+    pszNTUserPassword - The password for gach_config_ntuser. Buffer must be at least
                   SF_MAX_PASSWORD
 
 Return Value:
@@ -294,94 +314,90 @@ Return Value:
 
 --*/
 {
-    CHAR		*pchEnd				= 0;
-    
-	DWORD		cchUser				= strlen( pszUser );
-    DWORD		cch					= 0;
+	CHAR		achLDAPquery[MAXSTRLEN]	= "";
+	CHAR		achLDAPDN[MAXSTRLEN]	= "";
 
-	LDAP		*ld					= 0;
-	LDAPMessage *res				= 0;
-	LDAPMessage *msg				= 0;
+	INT32		liEntries				= 0;
+	INT32		liReferences			= 0;
+	INT32		liResult				= 0;
 
-	int			lEntries			= 0;
-	int			lReferences			= 0;
-	int			lResult				= 0;
-
-	CHAR		achLDAPquery[256]	= "";
-	CHAR		achLDAPDN[256]		= "";
+	LDAP		*ld						= 0;
+	LDAPMessage *res					= 0;
+	LDAPMessage *msg					= 0;
 
     *pfFound = FALSE;
 
 	/*  If no cert file is present, use plaintext connection.  */
 
-	if ( !strcmp(CERTSFILE, "") )
+	if ( !strcmp(gach_config_certsfile, "") )
 	{
-		ld = ldap_init( LDAPHOST, PORTNUMBER );
+		ld = ldap_init( gach_config_ldaphost, gi_config_ldapport );
 	}
 	else
 	{
-		if (ldapssl_client_init(CERTSFILE, NULL) != 0) 
+		if ( ldapssl_client_init(gach_config_certsfile, NULL) != 0 ) 
 		{
-			DebugWrite("[LookUpUserInDB] ldapssl_client_init failed.\n");
+			DebugWrite("[LDAPDB_GetUser] ldapssl_client_init failed.\n");
 			SetLastError( ERROR_BAD_USERNAME );
 			return(FALSE);
 		}
 
-		ld = ldapssl_init( LDAPHOST, PORTNUMBER, 1 );
+		ld = ldapssl_init( gach_config_ldaphost, gi_config_ldapport, 1 );
 	}
 
-	if ( ld==NULL )
+	if ( ld == NULL )
 	{
-		DebugWrite("[LookUpUserInDB] ldap_init() failed.\n");
+		DebugWrite("[LDAPDB_GetUser] ldap_init() failed.\n");
 		
 		SetLastError( ERROR_BAD_USERNAME );
 		return( FALSE );
 	}
 	
-	if ( ldap_simple_bind_s(ld,BINDUSER,BINDPASSWORD) == LDAP_CONNECT_ERROR ) 
+	if ( ldap_simple_bind_s(ld,gach_config_binduser,gach_config_bindpassword) == LDAP_CONNECT_ERROR ) 
 	{
-		DebugWrite("[LookUpUserInDB] ldap_simple_bind_s failed.\n");
-		DebugWrite(BINDUSER);
+		DebugWrite("[LDAPDB_GetUser] ldap_simple_bind_s failed.\n");
+		DebugWrite(gach_config_binduser);
 		DebugWrite("\n");
 		
 		SetLastError( ERROR_BAD_USERNAME );
 		return( FALSE );
 	}
 
-	strcpy( achLDAPquery,"(&(" );
-	strcat( achLDAPquery, LDAPUID );	/* achLDAPquery= (&(uid */
-	strcat( achLDAPquery, "=" );		/* achLDAPquery= (&(uid= */
-	strcat( achLDAPquery,pszUser );		/* achLDAPquery= (&(uid=username */
-	strcat( achLDAPquery,")" );			/* achLDAPquery= (&(uid=username) */
-	strcat( achLDAPquery,LDAPFILTER );  /* achLDAPquery= (&(uid=username)LDAPFILTER */
-	strcat( achLDAPquery,")" );			/* achLDAPquery= (&(uid=username)LDAPFILTER) */
+	/*  FIX ME - BUFFER OVERFLOW ISSUE  */
+	strlcpy( achLDAPquery, "(&(", MAXSTRLEN );
+	strlcat( achLDAPquery, gach_config_ldapuid, MAXSTRLEN );	/* achLDAPquery= (&(uid */
+	strlcat( achLDAPquery, "=", MAXSTRLEN );					/* achLDAPquery= (&(uid= */
+	strlcat( achLDAPquery, pszUser, MAXSTRLEN );				/* achLDAPquery= (&(uid=username */
+	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username) */
+	strlcat( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN ); /* achLDAPquery= (&(uid=username)gach_config_ldapfilter */
+	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username)gach_config_ldapfilter) */
 
-	lResult = ldap_search_s( ld, SEARCHBASE, LDAP_SCOPE_SUBTREE, achLDAPquery, NULL, 0, &res );
+	liResult = ldap_search_s( ld, gach_config_searchbase, LDAP_SCOPE_SUBTREE, achLDAPquery, NULL, 0, &res );
 
-	DebugWrite("[LookUpUserInDB] Busquem l'usuari: ");
+	DebugWrite("[LDAPDB_GetUser] Busquem l'usuari: ");
 	DebugWrite(tmp);
 	DebugWrite("\n");
 	DebugWrite(" Sota: ");
-	DebugWrite(SEARCHBASE);
+	DebugWrite(gach_config_searchbase);
 	DebugWrite("\n");
 
-	if ( lResult == LDAP_SUCCESS ) 
+	if ( liResult == LDAP_SUCCESS ) 
 	{
-		lEntries = ldap_count_entries( ld, res );
-		lReferences = ldap_count_references( ld, res );
+		liEntries = ldap_count_entries( ld, res );
+		liReferences = ldap_count_references( ld, res );
 		
-		if ( lEntries > 0 ) 
+		if ( liEntries > 0 ) 
 		{
 			msg = ldap_first_entry( ld,res );
-			strcpy( achLDAPDN, ldap_get_dn(ld,msg) ); 
+			strlcpy( achLDAPDN, ldap_get_dn(ld,msg), MAXSTRLEN ); 
 
-			lResult = ldap_simple_bind_s( ld, achLDAPDN, pszPassword );
+			liResult = ldap_simple_bind_s( ld, achLDAPDN, pszPassword );
 			
 			ldap_unbind_s( ld );
 			
-			if ( lResult != LDAP_SUCCESS ) 
+			if ( liResult != LDAP_SUCCESS ) 
 			{
-				DebugWrite("[LookUpUserInDB] No ha fet login\n");
+				DebugWrite("[LDAPDB_GetUser] No ha fet login\n");
 				
 				SetLastError( ERROR_BAD_USERNAME );
 				return(FALSE);
@@ -390,43 +406,43 @@ Return Value:
 			{
 				*pfFound = TRUE;
 
-				DebugWrite("[LookUpUserInDB] Si ha fet login\n");
+				DebugWrite("[LDAPDB_GetUser] Si ha fet login\n");
 			}
 		}
 		else 
 		{
 			ldap_unbind_s( ld );
 
-			DebugWrite("[LookUpUserInDB] No s'ha trobat l'uid\n");
+			DebugWrite("[LDAPDB_GetUser] No s'ha trobat l'uid\n");
 			SetLastError( ERROR_BAD_USERNAME );
 			return(FALSE);
 		}
 	}
 	else 
 	{ 
-		DebugWrite("[LookUpUserInDB] Usuari no trobat\n");
+		DebugWrite("[LDAPDB_GetUser] Usuari no trobat\n");
 		ldap_unbind_s( ld );
 		SetLastError( ERROR_BAD_USERNAME );
 
 		return( FALSE );
 	}
 
-	DebugWrite("[LookUpUserInDB] Usuari autenticat\n");
+	DebugWrite("[LDAPDB_GetUser] Usuari autenticat\n");
 
 	if ( *pfFound )
 	{
-		/*  if ldapauth.ini did not specify NTUSER, use LDAP user  */
+		/*  if ldapauth.ini did not specify gach_config_ntuser, use LDAP user  */
 
-		if ( !strcmp(NTUSER, "") )
+		if ( !strcmp(gach_config_ntuser, "") )
 		{
-			strcpy( pszNTUser, pszUser );
+			strlcpy( pszNTUser, pszUser, SF_MAX_USERNAME );
 		}
 		else
 		{
-			strcpy( pszNTUser, NTUSER );
+			strlcpy( pszNTUser, gach_config_ntuser, SF_MAX_USERNAME );
 		}
 		
-		strcpy( pszNTUserPassword, NTUSERPASSWORD );
+		strlcpy( pszNTUserPassword, gach_config_ntuserpassword, SF_MAX_PASSWORD );
 	}
 
     return TRUE;
@@ -434,14 +450,14 @@ Return Value:
 
 
 VOID
-TerminateUserDatabase(
+LDAPDB_Terminate(
     VOID
     )
 /*++
 
 Routine Description:
 
-    Shutsdown the user database.
+    Terminates the LDAP database.
 
 --*/
 {
