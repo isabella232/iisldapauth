@@ -32,12 +32,6 @@
 #include ".\novell-cldap\Win32\inc\lber.h"
 #include "ldapauth.h"
 
-
-#define MODULE_CONF_FILE		"\\ldapauth.ini"	/*  Include beginning backslash  */
-#define DEFAULTUID				"uid"
-#define MAXSTRLEN				1024
-
-
 /*
 	Global Configuration Variables
 	These are read from the ldapauth.ini file.
@@ -222,6 +216,7 @@ Return Value:
 			continue;
 		}
 
+#ifdef LDAP_CACHE
 		if ( !stricmp(achToken,"CACHESIZE") )
 		{
 			guli_config_cachesize = atoi( achParam );
@@ -233,7 +228,7 @@ Return Value:
 			guli_config_cachetime = atoi( achParam );
 			continue;
 		}
-
+#endif /* LDAP_CACHE */
 		/*  
 			Do not place any executable statements at end of loop statement.
 			Gratuitous use of continue; statements above.
