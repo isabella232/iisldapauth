@@ -30,48 +30,42 @@
 /*
     Constants
 */
-
 #define MAXSTRLEN			1024
 #define MODULE_CONF_FILE	"\\ldapauth.ini"	/*  Include beginning backslash  */
 #define DEFAULTUID			"uid"
 
-#define ISWHITE( ch )      ((ch) && ((ch) == ' ' || (ch) == '\t' ||  \
-                            (ch) == '\n' || (ch) == '\r'))
-
-#ifndef DEST
-#define DEST               "c:\\filtredbg.txt"
-/*void DebugWrite( char * x )     
-	{                                    
-    FILE *f;                        
-	f=fopen(DEST,"a");             
-    fprintf(f,"%s", x);               
-    fclose( f);        
-    }*/
-//#else
-#define DebugWrite( x )      /* nothing */
-#endif
-
-
+/*
+	Compile Options
+*/
 #define DENYBLANKPASSWORDS	1
 #define BSTENTERPRISEHACK	1
 #define LDAP_CACHE			1
+#define LDAP_LOGGING		1
+
+/*
+	Debug Strings
+*/
+#ifdef LDAP_LOGGING
+#define DebugWrite( x ) Log_Write( x, LDAPLOG_DEBUG )
+#else
+#define DebugWrite( x )      /* nothing */
+#endif /* LDAP_LOGGING */
 
 
 typedef struct
 {
     int	iLength;
     CHAR szLogEntry[ 2 * SF_MAX_USERNAME + 4 ];
-} LDAP_AUTH_CONTEXT; 
+} LDAP_AUTH_CONTEXT;
 
 
 /*
 	Prototypes
 */
 
-/*	Database routines	*/
-
-
-
+/*
+	Database routines
+*/
 BOOL
 ValidateUser(
     CHAR * pszUserName,
@@ -98,9 +92,18 @@ LDAPDB_Terminate(
     VOID
     );
 
-/*  Cache routines  */
+/*
+	Cache routines
+*/
 #ifdef LDAP_CACHE
 #include "cache.h"
 #endif  /* LDAP_CACHE */
+
+/*
+	Logging routines
+*/
+#ifdef LDAP_LOGGING
+#include "ldapauthlog.h"
+#endif  /* LDAP_LOGGING */
 
 #endif /* _IISLDAPAUTH_H_ */
