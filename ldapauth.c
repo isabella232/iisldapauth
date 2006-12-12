@@ -63,7 +63,7 @@ DllMain(
 
 			if ( !LDAPDB_Initialize() )
 			{
-				DebugWrite("[GetFilterVersion] Database initialization failed.\n");
+				DebugWrite("LDAPDEBUG: [GetFilterVersion] Database initialization failed.");
 				return( FALSE );
 			}
 
@@ -113,8 +113,6 @@ GetFilterVersion(
 	HTTP_FILTER_VERSION * pVer
     )
 {
-    DebugWrite("[GetFilterVersion] Server filter version is\n");
-
     pVer->dwFilterVersion = HTTP_FILTER_REVISION;
 
     /*
@@ -202,7 +200,7 @@ Return Value:
 
 			if ( !ValidateUser(pAuth->pszUser, pAuth->pszPassword, &fAllowed) )
 			{
-				DebugWrite( "[OnAuthentication] Error validating user.\n" );		
+				DebugWrite( "LDAPDEBUG: [HttpFilterProc] Error validating user." );		
 				SetLastError( ERROR_ACCESS_DENIED );      
 				return( SF_STATUS_REQ_ERROR );
 			}
@@ -274,7 +272,7 @@ Return Value:
 	break;
 
     default:
-        DebugWrite("[HttpFilterProc] Unknown notification type.\n");
+        DebugWrite("LDAPDEBUG: [HttpFilterProc] Unknown notification type.");
     break;
     }
 
@@ -309,9 +307,10 @@ Return Value:
 
 --*/
 {
-    BOOL fFound								= 0;
-    CHAR achNTUser[SF_MAX_USERNAME]			= "";
-    CHAR m_achNTUserPassword[SF_MAX_PASSWORD]	= "";
+    BOOL fFound							= 0;
+    CHAR achNTUser[SF_MAX_USERNAME]		= "";
+    CHAR achNTPassword[SF_MAX_PASSWORD]	= "";
+	CHAR achLogEntry[MAXSTRLEN]			= "";
 
     /*
         Assume we're going to fail validation
@@ -333,8 +332,7 @@ Return Value:
 #endif
 
 #ifdef BSTENTERPRISEHACK
-    //  Hacks for BST
-
+    /*  Hacks for BST Enterprise  */
     if ( !stricmp(pszUserName, "bstdba") )
 	{
 		*pfValid = TRUE;
@@ -342,58 +340,26 @@ Return Value:
 	}
 #endif
 
-	/*
-        Lookup the user in the cache, if that fails, get the user from the
-        database and add the retrieved user to the cache
-    */
-
-#ifdef LDAP_CACHE
-
-    if ( !fFound )
-	{
-		if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword) )
-		{
-			DebugWrite( "[ValidateUser] LookupUserInCache() failed.\n" );
-			return( FALSE );
-		}
-	}
-
-#endif /* LDAP_CACHE */
-
-    if ( !fFound )
+    if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, achNTPassword) )
     {
-        if ( !LDAPDB_GetUser( pszUserName, &fFound, pszPassword, achNTUser, m_achNTUserPassword ))
-        {
-			DebugWrite("[ValidateUser] LookupUserInDb() failed.\n");
-            return( FALSE );
-        }
-		
-		if ( fFound )
-        {
-			#ifdef LDAP_CACHE
-            Cache_AddUser( pszUserName, pszPassword, achNTUser, m_achNTUserPassword );
-			#endif /* LDAP_CACHE */
-        }
+		DebugWrite("LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() failed.");
+        return( FALSE );
     }
-
+	
     if ( !fFound )
     {
-        DebugWrite("[ValidateUser] Failed to find user.\n");
+		DebugWrite( "LDAPDEBUG: [ValidateUser] LDAPDB_GetUser returned false for fFound. User not found or LDAP authentication failed." );
     }
 	else
     {
         /*
             We have a match, map to the NT user and password
         */
-
         strlcpy( pszUserName, achNTUser, SF_MAX_USERNAME );
-        strlcpy( pszPassword, m_achNTUserPassword, SF_MAX_PASSWORD );
+        strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
 
-		DebugWrite("[ValidateUser] Si hem trobat l'usuari\n");
-		DebugWrite(pszUserName);
-		DebugWrite(",");
-		DebugWrite(pszPassword);
-		DebugWrite("\n");
+		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUserName, pszPassword );
+		DebugWrite( achLogEntry );
 
         *pfValid = TRUE;
 		return( TRUE );
