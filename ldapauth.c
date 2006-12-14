@@ -28,7 +28,6 @@
 
 #include "ldapauth.h"
 
-HANDLE	hEventLog = NULL;
 
 BOOL
 WINAPI
@@ -57,6 +56,8 @@ DllMain(
 
 --*/
 {
+	BOOL fResult = FALSE;
+
     switch ( fdwReason )
     {
 		case DLL_PROCESS_ATTACH:
@@ -64,23 +65,17 @@ DllMain(
 			if ( !LDAPDB_Initialize() )
 			{
 				DebugWrite("LDAPDEBUG: [GetFilterVersion] Database initialization failed.");
-				return( FALSE );
+				goto exception;
 			}
 
 			/*
 			    We don't care about thread attach/detach notifications
 			*/
-
 			DisableThreadLibraryCalls( hinstDll );
 
         break;
 
 		case DLL_PROCESS_DETACH:
-
-#ifdef LDAP_CACHE
-			Cache_Terminate();
-#endif /* LDAP_CACHE */
-
 			LDAPDB_Terminate();
         break;
 
@@ -88,7 +83,10 @@ DllMain(
         break;
     }  
 
-    return( TRUE );
+	fResult = TRUE;	/*  If we get here, everything was okay.  */
+
+exception:
+    return( fResult );
 }  
 
 
@@ -176,28 +174,24 @@ Return Value:
 			/*
 			    Ignore the anonymous user
 			*/
-
 			if ( !*pAuth->pszUser )
 			{
 				/*
 				    Tell the server to notify any subsequent notifications in the
 				    chain
 				*/
-
 				return( SF_STATUS_REQ_NEXT_NOTIFICATION );
 			}
 
 			/*
 			    Save the unmapped username so we can log it later
 			*/
-
 			strlcpy( achLDAPUser, pAuth->pszUser, SF_MAX_USERNAME );
 
 			/*
 			    Make sure this user is a valid user and map to the appropriate
 			    Windows NT user
 			*/
-
 			if ( !ValidateUser(pAuth->pszUser, pAuth->pszPassword, &fAllowed) )
 			{
 				DebugWrite( "LDAPDEBUG: [HttpFilterProc] Error validating user." );		
@@ -210,7 +204,6 @@ Return Value:
 				/*
 				    This user isn't allowed access.  Indicate this to the server
 				*/
-
 				SetLastError( ERROR_ACCESS_DENIED );
 				return( SF_STATUS_REQ_ERROR );
 			}
@@ -254,7 +247,6 @@ Return Value:
             authenticated this user. FilterContext must be allocated
 		    and valid until the next notification.
         */
-
 		if ( pfc->pFilterContext )
 		{
 			pContextData = pfc->pFilterContext;
@@ -272,7 +264,7 @@ Return Value:
 	break;
 
     default:
-        DebugWrite("LDAPDEBUG: [HttpFilterProc] Unknown notification type.");
+        DebugWrite( "LDAPDEBUG: [HttpFilterProc] Unknown notification type." );
     break;
     }
 
@@ -307,7 +299,8 @@ Return Value:
 
 --*/
 {
-    BOOL fFound							= 0;
+    BOOL fResult						= FALSE;
+	BOOL fFound							= FALSE;
     CHAR achNTUser[SF_MAX_USERNAME]		= "";
     CHAR achNTPassword[SF_MAX_PASSWORD]	= "";
 	CHAR achLogEntry[MAXSTRLEN]			= "";
@@ -315,19 +308,18 @@ Return Value:
     /*
         Assume we're going to fail validation
     */
-
     *pfValid = FALSE;
-	fFound=FALSE;
 
 #ifdef DENYBLANKPASSWORDS
 	/*  
 		The Netware eDir server will incorrect allow user to authenticate
 	    as anonymous if you pass a zero-length password.
 	*/
-
 	if ( !strcmp(pszPassword, "") )
 	{
-		return( FALSE );
+		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User %s Blank Password Denied.", pszUserName );
+		DebugWrite( achLogEntry );
+		goto exception;
 	}
 #endif
 
@@ -336,34 +328,43 @@ Return Value:
     if ( !stricmp(pszUserName, "bstdba") )
 	{
 		*pfValid = TRUE;
-		return( TRUE );
+		fResult = TRUE;
 	}
-#endif
-
-    if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, achNTPassword) )
-    {
-		DebugWrite("LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() failed.");
-        return( FALSE );
-    }
-	
-    if ( !fFound )
-    {
-		DebugWrite( "LDAPDEBUG: [ValidateUser] LDAPDB_GetUser returned false for fFound. User not found or LDAP authentication failed." );
-    }
 	else
-    {
-        /*
-            We have a match, map to the NT user and password
-        */
-        strlcpy( pszUserName, achNTUser, SF_MAX_USERNAME );
-        strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
+	{
+#endif /* BSTENTERPRISEHACK */
 
-		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUserName, pszPassword );
-		DebugWrite( achLogEntry );
+		if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, achNTPassword) )
+		{
+			DebugWrite("LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() failed.");
+			goto exception;
+		}
+		else
+		{
+			if ( !fFound )
+			{
+				DebugWrite( "LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() returned no record found. User not found or LDAP authentication failed." );
+			}
+			else
+			{
+				/*
+					We have a match, map to the NT user and password
+				*/
+				strlcpy( pszUserName, achNTUser, SF_MAX_USERNAME );
+				strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
 
-        *pfValid = TRUE;
-		return( TRUE );
-    }
-	
-    return( FALSE );
+				sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUserName, pszPassword );
+				DebugWrite( achLogEntry );
+
+				*pfValid = TRUE;
+				fResult = TRUE;
+			}
+		}
+
+#ifdef BSTENTERPRISEHACK
+	}
+#endif /* BSTENTERPRISEHACK */
+
+exception:
+    return( fResult );
 }
