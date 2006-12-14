@@ -33,6 +33,7 @@
 #define MAXSTRLEN			1024
 #define MODULE_CONF_FILE	"\\ldapauth.ini"	/*  Include beginning backslash  */
 #define DEFAULTUID			"uid"
+#define USER_SEARCH_KEY		"%username%"
 
 /*
 	Compile Options
@@ -41,6 +42,13 @@
 #define BSTENTERPRISEHACK	1
 #define LDAP_CACHE			1
 #define LDAP_LOGGING		1
+/*
+
+	Visual Studio 2005 includes support for strlcpy() and strlcat().
+	Enable the #define to turn off our versions of these routines.
+
+#define VS2005				1
+*/
 
 /*
 	Debug Strings
