@@ -251,25 +251,25 @@ Return Value:
 		*/
 	}
 
-	if ( !strcmp(gach_config_ldaphost,"") )
+	if ( !stricmp(gach_config_ldaphost,"") )
 	{
 		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No LDAPHOST specified." );
 		goto exception;
 	}
 
-	if ( !strcmp(gach_config_searchbase,"") )
+	if ( !stricmp(gach_config_searchbase,"") )
 	{      
 		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No SEARCHBASE specified." );
 		goto exception;
 	}
 	
-	if ( !strcmp(gach_config_ldapfilter,"") )
+	if ( !stricmp(gach_config_ldapfilter,"") )
 	{     
 		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No LDAPFILTER specified." );
 		goto exception;
 	}
 
-	if ( !strcmp(gach_config_ntuser,"") )
+	if ( !stricmp(gach_config_ntuser,"") )
 	{  
 		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No NTUSER specified." );	
 	}
@@ -277,7 +277,7 @@ Return Value:
 	//  if a user did not specify a gach_config_certsfile or LDAPPORT, make sure
 	//  the default port is set correctly
 
-	if ( !strcmp(gach_config_certsfile,"") )
+	if ( !stricmp(gach_config_certsfile,"") )
 	{	    
 		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified." );	
 	
@@ -291,7 +291,7 @@ Return Value:
 		gi_config_ldapport = LDAPS_PORT;
 	}
 
-	if ( !strcmp(gach_config_ldapuid, "") )
+	if ( !stricmp(gach_config_ldapuid, "") )
 	{
 		/*  set default LDAP UID object if none specified  */
 		strlcpy( gach_config_ldapuid, DEFAULTUID, MAXSTRLEN );
@@ -306,7 +306,10 @@ Return Value:
 	#endif /* LDAP_CACHE */
 
 	#ifdef LDAP_LOGGING
-		Log_Initialize( gach_config_logfilepath );
+		if ( !stricmp(gach_config_logfilepath, "") ) 
+		{
+			Log_Initialize( gach_config_logfilepath );
+		}
 	#endif /* LDAP_LOGGING */
 
 	bResult = TRUE;
@@ -375,6 +378,26 @@ Return Value:
 	LDAPMessage *msg					= 0;
 
     *pfFound = FALSE;
+	
+	/*
+		Check our parameters
+	*/
+	if ( !(	pszUser != NULL && 
+		pfFound != NULL && 
+		pszPassword != NULL && 
+		pszNTUser != NULL && 
+		pszNTUserPassword != NULL) )
+	{
+		goto exception;
+	}
+
+	if ( strlen(pszUser) > SF_MAX_USERNAME ||
+		strlen(pszPassword) > SF_MAX_PASSWORD ||
+		strlen(pszNTUser) > SF_MAX_USERNAME ||
+		strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
+    {
+        goto exception;
+    }
 
 #ifdef LDAP_CACHE
 	/*
@@ -393,6 +416,7 @@ Return Value:
 			If we found the user in the cache, set the result
 			flag to TRUE and get out of here.
 		*/
+		DebugWrite( "LDAPDEBUG: [ValidateUser] Cache_GetUser() User found." );
 		bResult = TRUE;
 		goto exception;
 	}
@@ -414,6 +438,7 @@ Return Value:
 			goto exception;
 		}
 
+		/* Last parameter (the 1) is to specify a secure connection. */
 		ld = ldapssl_init( gach_config_ldaphost, gi_config_ldapport, 1 );
 	}
 
@@ -426,7 +451,8 @@ Return Value:
 	
 	/*
 		LDAP: Initial Bind
-		First attempt to bind using the binddn or anonymous.
+		First attempt to bind using the BINDDN from config file 
+		or anonymous user.
 	*/
 	liResult = ldap_simple_bind_s( ld, gach_config_binduser, gach_config_bindpassword );
 	if ( liResult != LDAP_SUCCESS ) 
@@ -443,13 +469,17 @@ Return Value:
 		If the bind worked, build the query string and locate
 		the user's fully qualified DN.
 	*/
-	strlcpy( achLDAPquery, "(&(", MAXSTRLEN );					/* achLDAPquery= (&( */
-	strlcat( achLDAPquery, gach_config_ldapuid, MAXSTRLEN );	/* achLDAPquery= (&(uid */
-	strlcat( achLDAPquery, "=", MAXSTRLEN );					/* achLDAPquery= (&(uid= */
-	strlcat( achLDAPquery, pszUser, MAXSTRLEN );				/* achLDAPquery= (&(uid=username */
-	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username) */
-	strlcat( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN ); /* achLDAPquery= (&(uid=username)gach_config_ldapfilter */
-	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username)gach_config_ldapfilter) */
+
+	strlcpy( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN );
+	strlreplace( achLDAPquery, USER_SEARCH_KEY, pszUser, MAXSTRLEN );
+
+//	strlcpy( achLDAPquery, "(&(", MAXSTRLEN );					/* achLDAPquery= (&( */
+//	strlcat( achLDAPquery, gach_config_ldapuid, MAXSTRLEN );	/* achLDAPquery= (&(uid */
+//	strlcat( achLDAPquery, "=", MAXSTRLEN );					/* achLDAPquery= (&(uid= */
+//	strlcat( achLDAPquery, pszUser, MAXSTRLEN );				/* achLDAPquery= (&(uid=username */
+//	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username) */
+//	strlcat( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN ); /* achLDAPquery= (&(uid=username)gach_config_ldapfilter */
+//	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username)gach_config_ldapfilter) */
 
 	liResult = ldap_search_s( ld, gach_config_searchbase, LDAP_SCOPE_SUBTREE, achLDAPquery, NULL, 0, &res );
 
