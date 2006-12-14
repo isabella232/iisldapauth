@@ -52,7 +52,7 @@ Log_Initialize(
 {
 	BOOL	fResult = FALSE;
 
-	if ( gpfsLogFile != NULL ) goto exception;
+	if ( gpfsLogFile == NULL ) goto exception;
 
 	InitializeCriticalSection( &gsLogLock );
 	EnterCriticalSection( &gsLogLock );
