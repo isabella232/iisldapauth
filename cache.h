@@ -63,7 +63,7 @@ Cache_Initialize(
 
 BOOL
 Cache_GetUser(
-    CHAR * pszUserName,
+    CHAR * pszUser,
 	BOOL * pfFound,
     CHAR * pszPassword,
     CHAR * pszNTUser,

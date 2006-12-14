@@ -113,7 +113,7 @@ exception:
 
 BOOL
 Cache_GetUser(
-    CHAR * pszUserName,
+    CHAR * pszUser,
 	BOOL * pfFound,
     CHAR * pszPassword,
     CHAR * pszNTUser,
@@ -128,7 +128,7 @@ Routine Description:
 
 Arguments:
 
-    pszUserName			- Case insensitive username to find
+    pszUser 			- Case insensitive username to find
     pfFound				- Set to TRUE if the specified user was found
     pszPassword			- Receives password for specified user if found
     pszNTUser			- Receives the NT Username to map this user to
@@ -154,7 +154,12 @@ Return Value:
 
 	/*
         Check our parameters before adding them to the cache
+
+		NOTE: This is commented out as LDAPDB_GetUser() checks
+		these conditions as well. Do we really want to iterate
+		the strings twice?
     */
+	/*
 	if ( !(pszUserName != NULL &&
 		pfFound != NULL &&
 		pszPassword != NULL &&
@@ -171,6 +176,7 @@ Return Value:
     {
         goto exception;
     }
+	*/
 
 	/*
         Search the cache for the specified user
@@ -182,7 +188,7 @@ Return Value:
 
     while ( (uliIndex < guliCacheItems) && (!fFound) )
 	{
-        if ( !stricmp(pszUserName, gpCache[uliIndex].m_achUserName) ) 
+        if ( !stricmp(pszUser, gpCache[uliIndex].m_achUserName) ) 
 		{
 			if ( !stricmp(pszPassword, gpCache[uliIndex].m_achPassword) )
 			{
