@@ -28,6 +28,7 @@
 */
 FILE				*gpfsLogFile	= 0;
 CRITICAL_SECTION	gsLogLock		= {0};
+UINT16				gliLevel		= 0;
 
 BOOL
 Log_Initialize(
@@ -37,12 +38,12 @@ Log_Initialize(
 
  Routine Description:
 
-   Initializes the logging system. When called, a header will
-   be written to the log. 
+	Initializes the logging system. When called, a header will
+	be written to the log. 
 
  Arguments:
 
-   pszLogPath		Windows pathname to the log file
+	pszLogPath		Windows pathname to the log file
 
  Return Value:
 
@@ -50,9 +51,9 @@ Log_Initialize(
 
 --*/
 {
-	BOOL	fResult = FALSE;
+	BOOL fResult = FALSE;
 
-	if ( gpfsLogFile == NULL ) goto exception;
+	if ( gpfsLogFile != NULL ) goto exception;
 
 	InitializeCriticalSection( &gsLogLock );
 	EnterCriticalSection( &gsLogLock );
@@ -71,6 +72,45 @@ Log_Initialize(
 	}
 
 	LeaveCriticalSection( &gsLogLock );
+
+exception:
+	return ( fResult );
+}
+
+
+BOOL
+Log_SetLevel(
+    const UINT16 liLevel
+    )
+/*++
+
+ Routine Description:
+
+	Sets the logging event level.
+
+ Arguments:
+
+	liLevel			Logging level constant
+
+ Return Value:
+
+    Returns TRUE is successful; otherwise FALSE is returned.
+
+--*/
+{
+	BOOL fResult = FALSE;
+
+	if ( gpfsLogFile == NULL ) goto exception;
+
+	if (liLevel == LDAPLOG_INFORMATIONAL ||
+		liLevel == LDAPLOG_WARNING ||
+		liLevel == LDAPLOG_CRITICAL ||
+		liLevel == LDAPLOG_DEBUG
+		)
+	{
+		gliLevel = liLevel;
+		fResult = TRUE;
+	}
 
 exception:
 	return ( fResult );
@@ -100,7 +140,7 @@ Log_Write(
 {
 	BOOL	fResult = FALSE;
 
-	if ( gpfsLogFile != NULL && pszLogLine != NULL )
+	if ( gpfsLogFile != NULL && pszLogLine != NULL && liLevel >= gliLevel )
 	{
 		fprintf( gpfsLogFile, "\n%s", pszLogLine ); 
 		fResult = TRUE;
