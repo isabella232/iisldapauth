@@ -32,14 +32,19 @@
 	CONSTANTS
 */
 
-#define LDAPLOG_INFORMATIONAL   1
-#define LDAPLOG_WARNING			2
-#define LDAPLOG_CRITICAL		4
-#define LDAPLOG_DEBUG			8
+#define LDAPLOG_INFORMATIONAL   10
+#define LDAPLOG_WARNING			20
+#define LDAPLOG_CRITICAL		30
+#define LDAPLOG_DEBUG			0
 
 BOOL
 Log_Initialize(
     const CHAR * pszLogPath
+    );
+
+BOOL
+Log_SetLevel(
+    const UINT16 liLevel
     );
 
 BOOL
