@@ -63,11 +63,11 @@ Cache_Initialize(
 
 Routine Description:
 
-    Initializes the cache module
+    Initializes the cache module.
 
 Return Value:
 
-    TRUE if initialized successfully, FALSE on error
+    TRUE if initialized successfully, FALSE on error.
 
 --*/
 {
@@ -123,23 +123,25 @@ Cache_GetUser(
 
 Routine Description:
 
-    Checks to see if a user is in the cache and returns the user properties
-    if found
+    Checks to see if a user is in the cache; returns the user
+	information if a valid cache record was found.
 
 Arguments:
 
-    pszUser 			- Case insensitive username to find
-    pfFound				- Set to TRUE if the specified user was found
-    pszPassword			- Receives password for specified user if found
-    pszNTUser			- Receives the NT Username to map this user to
-    pszNTUserPassword	- Receives the NT Password for pszNTUser
-
-    Note: pszPassword and pszNTUserPassword must be at least SF_MAX_PASSWORD
-    characters.  pszNTUser must be at least SF_MAX_USERNAME characters.
+    pszUserName			- The username to find in the database (case insensitive).
+						  Maximum length is SF_MAX_USERNAME bytes.
+    pfFound				- Set to TRUE if the specified LDAP username was 
+						  found in the database 
+    pszPassword			- The external password for the found user. 
+						  Maximum length is SF_MAX_PASSWORD bytes.
+    pszNTUser			- The NT username associated with this user. 
+						  Maximum length is SF_MAX_USERNAME bytes.
+    pszNTUserPassword	- The password for gach_config_ntuser. 
+						  Maximum length is SF_MAX_PASSWORD bytes.
 
 Return Value:
 
-    TRUE if no errors occurred.
+    TRUE on success, FALSE on failure.
 
 --*/
 {
@@ -160,7 +162,7 @@ Return Value:
 		the strings twice?
     */
 	/*
-	if ( !(pszUserName != NULL &&
+	if ( !(pszUser != NULL &&
 		pfFound != NULL &&
 		pszPassword != NULL &&
 		pszNTUser != NULL &&
@@ -169,7 +171,7 @@ Return Value:
         goto exception;
 	}
 
-    if ( strlen(pszUserName) > SF_MAX_USERNAME ||
+    if ( strlen(pszUser) > SF_MAX_USERNAME ||
          strlen(pszPassword) > SF_MAX_PASSWORD ||
          strlen(pszNTUser) > SF_MAX_USERNAME ||
          strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
@@ -243,7 +245,7 @@ exception:
 
 BOOL
 Cache_AddUser(
-    CHAR * pszUserName,
+    CHAR * pszUser,
     CHAR * pszPassword,
     CHAR * pszNTUser,
     CHAR * pszNTUserPassword
@@ -257,28 +259,30 @@ Routine Description:
 
 Arguments:
 
-    pszUserName			- Username to add
+    pszUser				- Username to add
     pszPassword			- Contains the external password for this user
     pszNTUser			- Contains the NT user name to use for this user
     pszNTUserPassword	- Contains the password for gach_config_ntuser
 
 Return Value:
 
-    TRUE if no errors occurred.
+    TRUE on success, FALSE on failure.
 
 --*/
 {
-	BOOL	fResult						= FALSE;
-	BOOL	fFound						= FALSE;
-	UINT32  uliIndex					= 0;
-	UINT64	ulliCurTime					= 0;
+	BOOL	fResult		= FALSE;
+	UINT32  uliIndex	= 0;
+	UINT64	ulliCurTime	= 0;
 	
 	EnterCriticalSection( &gsCacheLock );
 
 	/*
+		Note: We will make sure LDAPDB_GetUser() sends the right
+		parameters so the checking is not needed here.
+
         Check our parameters before adding them to the cache
-    */
-	if ( !(pszUserName != NULL &&
+    
+	if ( !(pszUser != NULL &&
 		pszPassword != NULL &&
 		pszNTUser != NULL &&
 		pszNTUserPassword != NULL) )
@@ -286,21 +290,27 @@ Return Value:
         goto exception;
 	}
 
-    if ( strlen(pszUserName) > SF_MAX_USERNAME ||
+    if ( strlen(pszUser) > SF_MAX_USERNAME ||
          strlen(pszPassword) > SF_MAX_PASSWORD ||
          strlen(pszNTUser) > SF_MAX_USERNAME ||
          strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
     {
         goto exception;
     }
+	*/
 
-    /*
+	/*
+		Get the current system time. We will use this to
+		compare the life of cache records or to use for
+		a new one.
+	*/
+	ulliCurTime = GetSystemTime100ns();
+
+	/*
         Find the first "free" record. This could
 		either be one past the current item count or
 		an expired record.
     */
-	ulliCurTime = GetSystemTime100ns();
-
 	while ( uliIndex < guliCacheItems )
 	{
 		if ( gpCache[uliIndex].m_lliTimestamp == 0 )
@@ -316,6 +326,9 @@ Return Value:
 		uliIndex++;
 	}
 
+	/*
+		If we are at the end of the cache, append a new record.
+	*/
 	if ( (uliIndex == guliCacheItems) && (guliCacheItems < guliCacheSize) )
 	{	
 		guliCacheItems++;
@@ -324,9 +337,9 @@ Return Value:
 	if ( uliIndex < guliCacheItems )
 	{
 		/*
-		    Set the various fields
+		    Set the cache entry fields
 		*/
-		strlcpy( gpCache[uliIndex].m_achUserName, pszUserName, SF_MAX_USERNAME );
+		strlcpy( gpCache[uliIndex].m_achUserName, pszUser, SF_MAX_USERNAME );
 		strlcpy( gpCache[uliIndex].m_achPassword, pszPassword, SF_MAX_PASSWORD );
 		strlcpy( gpCache[uliIndex].m_achNTUserName, pszNTUser, SF_MAX_USERNAME );
 		strlcpy( gpCache[uliIndex].m_achNTUserPassword, pszNTUserPassword, SF_MAX_PASSWORD );
@@ -355,7 +368,7 @@ Cache_Terminate(
 
 Routine Description:
 
-    Terminates the cache module and frees any allocated memory
+    Terminates the cache module and frees any allocated memory.
 
 Return Value:
 	
@@ -363,7 +376,6 @@ Return Value:
 
 --*/
 {
-
 	if ( !gfCacheInitialized )
 	{
         return;
@@ -374,7 +386,6 @@ Return Value:
 	LocalFree( gpCache );
 	gpCache = NULL;
     guliCacheItems = 0;
-
     gfCacheInitialized = FALSE;
 
     LeaveCriticalSection( &gsCacheLock );
@@ -407,7 +418,7 @@ Routine Description:
 
 Return Value:
 
-    UINT64 containing time in 100ns increments
+    UINT64 containing time in 100ns increments.
 
 --*/
 {
