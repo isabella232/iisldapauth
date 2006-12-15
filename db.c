@@ -53,7 +53,7 @@ UINT32	guli_config_cachetime					= 0;
 #endif
 #ifdef LDAP_LOGGING
 CHAR	gach_config_logfilepath[MAXSTRLEN]		= "";
-CHAR	gach_config_loglevel[MAXSTRLEN]			= "";
+UINT16	gach_config_loglevel					= LDAPLOG_WARNING;
 #endif
 
 BOOL
@@ -68,7 +68,7 @@ Routine Description:
 
 Return Value:
 
-    TRUE on success, FALSE on failure
+    TRUE on success, FALSE on failure.
 
 --*/
 {
@@ -241,7 +241,23 @@ Return Value:
 
 		if ( !stricmp(achToken,"LOGLEVEL") )
 		{
-			strlcpy( gach_config_loglevel, achParam, MAXSTRLEN );
+			if ( !stricmp(achParam, "debug") )
+			{
+				gach_config_loglevel = LDAPLOG_DEBUG;
+			}
+			else if ( !stricmp(achParam, "info") )
+			{
+				gach_config_loglevel = LDAPLOG_INFORMATIONAL;
+			}
+			else if ( !stricmp(achParam, "critical") )
+			{
+				gach_config_loglevel = LDAPLOG_CRITICAL;
+			}
+			else
+			{
+				gach_config_loglevel = LDAPLOG_WARNING;
+			}
+
 			continue;
 		}
 #endif /* LDAP_LOGGING */
@@ -306,9 +322,10 @@ Return Value:
 	#endif /* LDAP_CACHE */
 
 	#ifdef LDAP_LOGGING
-		if ( !stricmp(gach_config_logfilepath, "") ) 
+		if ( stricmp(gach_config_logfilepath, "") ) 
 		{
 			Log_Initialize( gach_config_logfilepath );
+			Log_SetLevel( gach_config_loglevel );
 		}
 	#endif /* LDAP_LOGGING */
 
@@ -330,37 +347,39 @@ exception:
 
 BOOL
 LDAPDB_GetUser(
-    IN CHAR * pszUser,
-    OUT BOOL * pfFound,
-    IN CHAR * pszPassword,
-    OUT CHAR * pszNTUser,
-    OUT CHAR * pszNTUserPassword
+    CHAR * pszUser,				/*  IN  */
+    BOOL * pfFound,				/*  OUT  */
+    CHAR * pszPassword,			/*  IN  */
+    CHAR * pszNTUser,			/*  IN  */
+    CHAR * pszNTUserPassword	/*  IN  */
     )
 /*++
 
 Routine Description:
 
-    Looks up the username in the database and returns the other attributes
-    associated with this user
+    Checks the LDAP server for the username, retrieves the DN, and 
+	attempts to authenticate with the LDAP server using the DN and
+	the supplied password.
 
-    The file data is not sorted to simulate the cost of an external database
-    lookup.
+	If LDAP_CACHE is defined, a simple memory cache is queried
+	before going to the network to improve performance.
 
 Arguments:
 
-    pszUserName - The username to find in the database (case insensitive)
-    pfFound     - Set to TRUE if the specified user name was found in the
-                  database
-    pszPassword - The external password for the found user.  Buffer must be
-                  at least SF_MAX_PASSWORD bytes.
-    pszNTUser   - The NT username associated with this user, Buffer must be at
-                  least SF_MAX_USERNAME bytes
-    pszNTUserPassword - The password for gach_config_ntuser. Buffer must be at least
-                  SF_MAX_PASSWORD
+    pszUserName			- The username to find in the database (case insensitive).
+						  Maximum length is SF_MAX_USERNAME bytes.
+    pfFound				- Set to TRUE if the specified LDAP username was 
+						  found in the database 
+    pszPassword			- The external password for the found user. 
+						  Maximum length is SF_MAX_PASSWORD bytes.
+    pszNTUser			- The NT username associated with this user. 
+						  Maximum length is SF_MAX_USERNAME bytes.
+    pszNTUserPassword	- The password for gach_config_ntuser. 
+						  Maximum length is SF_MAX_PASSWORD bytes.
 
 Return Value:
 
-    TRUE on success, FALSE on failure
+    TRUE on success, FALSE on failure.
 
 --*/
 {
@@ -590,6 +609,10 @@ Routine Description:
 
     Terminates the LDAP database.
 
+Return Value:
+
+	None.
+
 --*/
 {
 	#ifdef LDAP_CACHE
@@ -600,6 +623,3 @@ Routine Description:
 	Log_Terminate();
 	#endif /* LDAP_LOGGING */
 }
-
-
-
