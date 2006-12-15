@@ -32,9 +32,9 @@
 BOOL
 WINAPI
 DllMain(
-     IN HINSTANCE hinstDll,
-     IN DWORD     fdwReason,
-     IN LPVOID    lpvContext OPTIONAL
+     HINSTANCE hinstDll,	/*  IN  */
+     DWORD     fdwReason,	/*  IN  */
+     LPVOID    lpvContext	/*  IN/OPTIONAL  */
      )
 /*++
 
@@ -108,7 +108,7 @@ Return Value:
 BOOL
 WINAPI
 GetFilterVersion(
-	HTTP_FILTER_VERSION * pVer
+	HTTP_FILTER_VERSION * pVer	/*  IN/OUT  */
     )
 {
     pVer->dwFilterVersion = HTTP_FILTER_REVISION;
@@ -132,9 +132,9 @@ GetFilterVersion(
 DWORD
 WINAPI
 HttpFilterProc(
-    HTTP_FILTER_CONTEXT *      pfc,
-    DWORD                      NotificationType,
-    VOID *                     pvData
+    HTTP_FILTER_CONTEXT * pfc,	/*  IN  */
+    DWORD NotificationType,		/*  IN  */
+    VOID * pvData				/*  IN/OPTIONAL  */
     )
 /*++
 
@@ -156,8 +156,7 @@ Return Value:
 {
     BOOL					fAllowed						= 0;
     CHAR					achLDAPUser[SF_MAX_USERNAME]	= "";
-    CHAR					*pchLogEntry					= 0;
-	HTTP_FILTER_AUTHENT		*pAuth							= 0;
+ 	HTTP_FILTER_AUTHENT		*pAuth							= 0;
     HTTP_FILTER_LOG			*pLog							= 0;
 	LDAP_AUTH_CONTEXT		*pContextData					= 0; 
  	
@@ -274,9 +273,9 @@ Return Value:
 
 BOOL
 ValidateUser(
-    IN OUT CHAR * pszUserName,
-    IN OUT CHAR * pszPassword,
-    OUT    BOOL * pfValid
+    CHAR * pszUser, /*  IN/OUT  */
+    CHAR * pszPassword, /*  IN/OUT  */
+    BOOL * pfValid		/*  OUT  */
     )
 /*++
 
@@ -287,7 +286,7 @@ Routine Description:
 
 Arguments:
 
-    pszUserName - The username to validate, will contain the mapped username
+    pszUser - The username to validate, will contain the mapped username
                   on return.  Must be at least SF_MAX_USERNAME
     pszPassword - The password for this user.  Will contain the mapped
                   password on return.  Must be at least SF_MAX_PASSWORD
@@ -317,7 +316,7 @@ Return Value:
 	*/
 	if ( !strcmp(pszPassword, "") )
 	{
-		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User %s Blank Password Denied.", pszUserName );
+		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User %s Blank Password Denied.", pszUser );
 		DebugWrite( achLogEntry );
 		goto exception;
 	}
@@ -325,7 +324,7 @@ Return Value:
 
 #ifdef BSTENTERPRISEHACK
     /*  Hacks for BST Enterprise  */
-    if ( !stricmp(pszUserName, "bstdba") )
+    if ( !stricmp(pszUser, "bstdba") )
 	{
 		*pfValid = TRUE;
 		fResult = TRUE;
@@ -334,7 +333,7 @@ Return Value:
 	{
 #endif /* BSTENTERPRISEHACK */
 
-		if ( !LDAPDB_GetUser(pszUserName, &fFound, pszPassword, achNTUser, achNTPassword) )
+		if ( !LDAPDB_GetUser(pszUser, &fFound, pszPassword, achNTUser, achNTPassword) )
 		{
 			DebugWrite("LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() failed.");
 			goto exception;
@@ -350,10 +349,10 @@ Return Value:
 				/*
 					We have a match, map to the NT user and password
 				*/
-				strlcpy( pszUserName, achNTUser, SF_MAX_USERNAME );
+				strlcpy( pszUser, achNTUser, SF_MAX_USERNAME );
 				strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
 
-				sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUserName, pszPassword );
+				sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUser, pszPassword );
 				DebugWrite( achLogEntry );
 
 				*pfValid = TRUE;
