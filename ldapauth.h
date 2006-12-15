@@ -60,6 +60,9 @@
 #endif /* LDAP_LOGGING */
 
 
+/*
+	This logging structure is currently not used.
+*/
 typedef struct
 {
     int	iLength;
@@ -72,15 +75,40 @@ typedef struct
 */
 
 /*
-	Database routines
+	ISAPI routines
 */
 BOOL
+WINAPI
+DllMain(
+     HINSTANCE hinstDll,
+     DWORD     fdwReason,
+     LPVOID    lpvContext
+     );
+
+BOOL
+WINAPI
+GetFilterVersion(
+	HTTP_FILTER_VERSION * pVer
+    );
+
+DWORD
+WINAPI
+HttpFilterProc(
+    HTTP_FILTER_CONTEXT * pfc,
+    DWORD NotificationType,
+    VOID * pvData
+    );
+
+BOOL
 ValidateUser(
-    CHAR * pszUserName,
+    CHAR * pszUser,
     CHAR * pszPassword,
     BOOL * pfValid
     );
 
+/*
+	Database routines
+*/
 BOOL
 LDAPDB_Initialize(
     VOID
@@ -88,11 +116,11 @@ LDAPDB_Initialize(
 
 BOOL
 LDAPDB_GetUser(
-    IN CHAR * pszUser,
-    OUT BOOL * pfFound,
-    OUT CHAR * pszPassword,
-    OUT CHAR * pszNTUser,
-    OUT CHAR * pszNTUserPassword
+    CHAR * pszUser,
+    BOOL * pfFound,
+    CHAR * pszPassword,
+    CHAR * pszNTUser,
+    CHAR * pszNTUserPassword
     );
 
 VOID
