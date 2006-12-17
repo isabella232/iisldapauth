@@ -182,12 +182,11 @@ Return Value:
 					return( SF_STATUS_REQ_ERROR );
 				}
 			}
-			else
-			{
-				ZeroMemory( pfc->pFilterContext, sizeof(IISLDAPAUTH_CONTEXT) );
-			}
 
 			pContextData = pfc->pFilterContext;
+			pContextData->m_achLDAPUser[0] = 0;
+			pContextData->m_achNTUser[0] = 0;
+			pContextData->m_achLogEntry[0] = 0;
 			
 			/*  Save the unmapped username for filter logging.  */
 			strlcpy( pContextData->m_achLDAPUser, pAuth->pszUser, SF_MAX_USERNAME );
@@ -242,19 +241,27 @@ Return Value:
 			pLog = ( HTTP_FILTER_LOG* ) pvData;
 			pContextData = pfc->pFilterContext;
 
-			strlcat( pContextData->m_achLogEntry, pContextData->m_achLDAPUser, MAXSTRLEN );
-			strlcat( pContextData->m_achLogEntry, " (Mapped To: ", MAXSTRLEN );
-
-			if ( !stricmp(pContextData->m_achNTUser, "") )
+			if ( !stricmp(pContextData->m_achLDAPUser, "") )
 			{
-				/*  If we do not have a mapped NT user, the LDAP operation failed.  */
-				strlcat( pContextData->m_achLogEntry, "IISLDAPAuth: Filter Error", MAXSTRLEN );
+				/*  do nothing  */
 			}
 			else
 			{
-				strlcat( pContextData->m_achLogEntry, pContextData->m_achNTUser, MAXSTRLEN );
+				strlcpy( pContextData->m_achLogEntry, pContextData->m_achLDAPUser, MAXSTRLEN );
+
+				if ( !stricmp(pContextData->m_achNTUser, "") )
+				{
+					/*  If we do not have a mapped NT user, the LDAP operation failed.  */
+					strlcat( pContextData->m_achLogEntry, " (Mapped to: <nothing>)", MAXSTRLEN );
+				}
+				else
+				{
+					strlcat( pContextData->m_achLogEntry, " (Mapped to: ", MAXSTRLEN );
+					strlcat( pContextData->m_achLogEntry, pContextData->m_achNTUser, MAXSTRLEN );
+					strlcat( pContextData->m_achLogEntry, ")", MAXSTRLEN );
+				}
 			}
-			strlcat( pContextData->m_achLogEntry, ")", MAXSTRLEN );
+
 			pLog->pszClientUserName = pContextData->m_achLogEntry;
 		} 
 
