@@ -12,7 +12,9 @@
 	File Name:	ldapauthlog.h
 
 	Abstract:
-    This module implements a file logging system.
+	This module implements a file logging system. These routines
+	can only be used for the ISAPI module running in IIS5
+	single process mode. 
 
 	Modification History:
 
