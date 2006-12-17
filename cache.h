@@ -48,10 +48,10 @@
 
 typedef struct SUSER_CACHE
 {
-    CHAR	m_achUserName[SF_MAX_USERNAME];		/* External username and password */
-    CHAR	m_achPassword[SF_MAX_PASSWORD];
-    CHAR	m_achNTUserName[SF_MAX_USERNAME];	/* Mapped NT account and password */
-    CHAR	m_achNTUserPassword[SF_MAX_PASSWORD];
+    CHAR	m_achLDAPUser[SF_MAX_USERNAME];		/* External username and password */
+    CHAR	m_achLDAPPassword[SF_MAX_PASSWORD];
+    CHAR	m_achNTUser[SF_MAX_USERNAME];		/* Mapped NT account and password */
+    CHAR	m_achNTPassword[SF_MAX_PASSWORD];
 	UINT64	m_lliTimestamp;						/* Cache entry timestamp */
 } SUSER_CACHE, *PUSER_CACHE;
 
@@ -63,19 +63,19 @@ Cache_Initialize(
 
 BOOL
 Cache_GetUser(
-    CHAR * pszUser,
+    CHAR * pszLDAPUser,
 	BOOL * pfFound,
-    CHAR * pszPassword,
+    CHAR * pszLDAPPassword,
     CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
+    CHAR * pszNTPassword
     );
 
 BOOL
 Cache_AddUser(
     CHAR * pszUserName,
-    CHAR * pszPassword,
+    CHAR * pszLDAPPassword,
     CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
+    CHAR * pszNTPassword
     );
 
 VOID

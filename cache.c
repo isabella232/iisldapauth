@@ -113,11 +113,11 @@ exception:
 
 BOOL
 Cache_GetUser(
-    CHAR * pszUser,
+    CHAR * pszLDAPUser,
 	BOOL * pfFound,
-    CHAR * pszPassword,
+    CHAR * pszLDAPPassword,
     CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
+    CHAR * pszNTPassword
     )
 /*++
 
@@ -128,15 +128,15 @@ Routine Description:
 
 Arguments:
 
-    pszUserName			- The username to find in the database (case insensitive).
+    pszLDAPUser			- The username to find in the database (case insensitive).
 						  Maximum length is SF_MAX_USERNAME bytes.
     pfFound				- Set to TRUE if the specified LDAP username was 
 						  found in the database 
-    pszPassword			- The external password for the found user. 
+    pszLDAPPassword		- The external password for the found user. 
 						  Maximum length is SF_MAX_PASSWORD bytes.
     pszNTUser			- The NT username associated with this user. 
 						  Maximum length is SF_MAX_USERNAME bytes.
-    pszNTUserPassword	- The password for gach_config_ntuser. 
+    pszNTPassword		- The password for gach_config_ntuser. 
 						  Maximum length is SF_MAX_PASSWORD bytes.
 
 Return Value:
@@ -162,19 +162,19 @@ Return Value:
 		the strings twice?
     */
 	/*
-	if ( !(pszUser != NULL &&
+	if ( !(pszLDAPUser != NULL &&
 		pfFound != NULL &&
-		pszPassword != NULL &&
+		pszLDAPPassword != NULL &&
 		pszNTUser != NULL &&
-		pszNTUserPassword != NULL) )
+		pszNTPassword != NULL) )
 	{
         goto exception;
 	}
 
-    if ( strlen(pszUser) > SF_MAX_USERNAME ||
-         strlen(pszPassword) > SF_MAX_PASSWORD ||
+    if ( strlen(pszLDAPUser) > SF_MAX_USERNAME ||
+         strlen(pszLDAPPassword) > SF_MAX_PASSWORD ||
          strlen(pszNTUser) > SF_MAX_USERNAME ||
-         strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
+         strlen(pszNTPassword) > SF_MAX_PASSWORD )
     {
         goto exception;
     }
@@ -190,9 +190,9 @@ Return Value:
 
     while ( (uliIndex < guliCacheItems) && (!fFound) )
 	{
-        if ( !stricmp(pszUser, gpCache[uliIndex].m_achUserName) ) 
+        if ( !stricmp(pszLDAPUser, gpCache[uliIndex].m_achLDAPUser) ) 
 		{
-			if ( !stricmp(pszPassword, gpCache[uliIndex].m_achPassword) )
+			if ( !stricmp(pszLDAPPassword, gpCache[uliIndex].m_achLDAPPassword) )
 			{
 				ulliDelta = ulliCurTime - gpCache[uliIndex].m_lliTimestamp;
 				
@@ -226,9 +226,9 @@ Return Value:
 		/*
 		    Copy out the user properties
 		*/
-		strlcpy( pszPassword,       gpCache[uliIndex].m_achPassword, SF_MAX_PASSWORD );
-		strlcpy( pszNTUser,         gpCache[uliIndex].m_achNTUserName, SF_MAX_USERNAME );
-		strlcpy( pszNTUserPassword, gpCache[uliIndex].m_achNTUserPassword, SF_MAX_PASSWORD );
+		strlcpy( pszLDAPPassword, gpCache[uliIndex].m_achLDAPPassword, SF_MAX_PASSWORD );
+		strlcpy( pszNTUser, gpCache[uliIndex].m_achNTUser, SF_MAX_USERNAME );
+		strlcpy( pszNTPassword, gpCache[uliIndex].m_achNTPassword, SF_MAX_PASSWORD );
 
 		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
 		
@@ -245,10 +245,10 @@ exception:
 
 BOOL
 Cache_AddUser(
-    CHAR * pszUser,
-    CHAR * pszPassword,
+    CHAR * pszLDAPUser,
+    CHAR * pszLDAPPassword,
     CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
+    CHAR * pszNTPassword
     )
 /*++
 
@@ -259,10 +259,10 @@ Routine Description:
 
 Arguments:
 
-    pszUser				- Username to add
-    pszPassword			- Contains the external password for this user
+    pszLDAPUser			- Username to add
+    pszLDAPPassword		- Contains the external password for this user
     pszNTUser			- Contains the NT user name to use for this user
-    pszNTUserPassword	- Contains the password for gach_config_ntuser
+    pszNTPassword		- Contains the password for gach_config_ntuser
 
 Return Value:
 
@@ -282,18 +282,18 @@ Return Value:
 
         Check our parameters before adding them to the cache
     
-	if ( !(pszUser != NULL &&
-		pszPassword != NULL &&
+	if ( !(pszLDAPUser != NULL &&
+		pszLDAPPassword != NULL &&
 		pszNTUser != NULL &&
-		pszNTUserPassword != NULL) )
+		pszNTPassword != NULL) )
 	{
         goto exception;
 	}
 
-    if ( strlen(pszUser) > SF_MAX_USERNAME ||
-         strlen(pszPassword) > SF_MAX_PASSWORD ||
+    if ( strlen(pszLDAPUser) > SF_MAX_USERNAME ||
+         strlen(pszLDAPPassword) > SF_MAX_PASSWORD ||
          strlen(pszNTUser) > SF_MAX_USERNAME ||
-         strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
+         strlen(pszNTPassword) > SF_MAX_PASSWORD )
     {
         goto exception;
     }
@@ -339,10 +339,10 @@ Return Value:
 		/*
 		    Set the cache entry fields
 		*/
-		strlcpy( gpCache[uliIndex].m_achUserName, pszUser, SF_MAX_USERNAME );
-		strlcpy( gpCache[uliIndex].m_achPassword, pszPassword, SF_MAX_PASSWORD );
-		strlcpy( gpCache[uliIndex].m_achNTUserName, pszNTUser, SF_MAX_USERNAME );
-		strlcpy( gpCache[uliIndex].m_achNTUserPassword, pszNTUserPassword, SF_MAX_PASSWORD );
+		strlcpy( gpCache[uliIndex].m_achLDAPUser, pszLDAPUser, SF_MAX_USERNAME );
+		strlcpy( gpCache[uliIndex].m_achLDAPPassword, pszLDAPPassword, SF_MAX_PASSWORD );
+		strlcpy( gpCache[uliIndex].m_achNTUser, pszNTUser, SF_MAX_USERNAME );
+		strlcpy( gpCache[uliIndex].m_achNTPassword, pszNTPassword, SF_MAX_PASSWORD );
 		gpCache[uliIndex].m_lliTimestamp = ulliCurTime;
 	}
 	else
