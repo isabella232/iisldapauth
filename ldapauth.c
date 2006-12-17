@@ -64,7 +64,7 @@ DllMain(
 
 			if ( !LDAPDB_Initialize() )
 			{
-				DebugWrite("LDAPDEBUG: [GetFilterVersion] Database initialization failed.");
+				DebugWrite("[GetFilterVersion] LDAPDB_Initialize() failed.");
 				goto exception;
 			}
 
@@ -144,9 +144,9 @@ Routine Description:
 
 Arguments:
 
-    pfc -              Filter context
-    NotificationType - Type of notification
-    pvData -           Notification specific data
+    pfc					- Filter context
+    NotificationType	- Type of notification
+    pvData				- Notification specific data
 
 Return Value:
 
@@ -155,15 +155,10 @@ Return Value:
 --*/
 {
     BOOL					fAllowed						= 0;
-    CHAR					achLDAPUser[SF_MAX_USERNAME]	= "";
- 	HTTP_FILTER_AUTHENT		*pAuth							= 0;
-    HTTP_FILTER_LOG			*pLog							= 0;
-	LDAP_AUTH_CONTEXT		*pContextData					= 0; 
+  	HTTP_FILTER_AUTHENT		*pAuth							= NULL;
+    HTTP_FILTER_LOG			*pLog							= NULL;
+	IISLDAPAUTH_CONTEXT		*pContextData					= NULL; 
  	
-    /*
-        Handle this notification
-    */
-
     switch ( NotificationType )
     {
 		case SF_NOTIFY_AUTHENTICATION:
@@ -171,55 +166,15 @@ Return Value:
 			pAuth = (HTTP_FILTER_AUTHENT *) pvData;
 
 			/*
-			    Ignore the anonymous user
-			*/
-			if ( !*pAuth->pszUser )
-			{
-				/*
-				    Tell the server to notify any subsequent notifications in the
-				    chain
-				*/
-				return( SF_STATUS_REQ_NEXT_NOTIFICATION );
-			}
-
-			/*
-			    Save the unmapped username so we can log it later
-			*/
-			strlcpy( achLDAPUser, pAuth->pszUser, SF_MAX_USERNAME );
-
-			/*
-			    Make sure this user is a valid user and map to the appropriate
-			    Windows NT user
-			*/
-			if ( !ValidateUser(pAuth->pszUser, pAuth->pszPassword, &fAllowed) )
-			{
-				DebugWrite( "LDAPDEBUG: [HttpFilterProc] Error validating user." );		
-				SetLastError( ERROR_ACCESS_DENIED );      
-				return( SF_STATUS_REQ_ERROR );
-			}
-			     
-			if ( !fAllowed )
-			{
-				/*
-				    This user isn't allowed access.  Indicate this to the server
-				*/
-				SetLastError( ERROR_ACCESS_DENIED );
-				return( SF_STATUS_REQ_ERROR );
-			}
-
-			/*
-			    Save the unmapped user name so we can log it later on.  We allocate
-			    enough space for two usernames so we can use this memory block
-			    for logging.  Note we may have already allocated it from a previous
-			    request on this TCP session
+			    Save the unmapped user name so we can log it later on. Note we may 
+				have already allocated it from a previous request on this TCP session
 
 			    FilterContext is used to pass information back to the IIS logging
 			    subsystem. It must remain allocated and valid between notifications.
 			*/
-
-			if ( !pfc->pFilterContext )
+			if ( pfc->pFilterContext == NULL )
 			{
-				pfc->pFilterContext = pfc->AllocMem( pfc, sizeof (LDAP_AUTH_CONTEXT), 0 );
+				pfc->pFilterContext = pfc->AllocMem( pfc, sizeof (IISLDAPAUTH_CONTEXT), 0 );
 				
 				if ( !pfc->pFilterContext )
 				{
@@ -229,41 +184,85 @@ Return Value:
 			}
 			else
 			{
-				ZeroMemory( pfc->pFilterContext, sizeof(LDAP_AUTH_CONTEXT) );
+				ZeroMemory( pfc->pFilterContext, sizeof(IISLDAPAUTH_CONTEXT) );
 			}
 
 			pContextData = pfc->pFilterContext;
-			strlcpy( pContextData->szLogEntry, achLDAPUser, SF_MAX_USERNAME );
-			pContextData->iLength = strlen ( achLDAPUser );
+			
+			/*  Save the unmapped username for filter logging.  */
+			strlcpy( pContextData->m_achLDAPUser, pAuth->pszUser, SF_MAX_USERNAME );
+
+			/*
+			    Ignore the anonymous user
+			*/
+			if ( !*pAuth->pszUser )
+			{
+				/*
+				    Tell the server to notify any subsequent 
+					notifications in the chain
+				*/
+				return( SF_STATUS_REQ_NEXT_NOTIFICATION );
+			}
+
+			/*
+			    Make sure this user is a valid user and map to the appropriate
+			    Windows NT user. ValidateUser() modified user/password parameters
+				with the mapped Windows NT substitutes.
+			*/
+			if ( !ValidateUser(pAuth->pszUser, pAuth->pszPassword, &fAllowed) )
+			{
+				DebugWrite( "[HttpFilterProc] ValidateUser() failed." );		
+				SetLastError( ERROR_ACCESS_DENIED );      
+				return( SF_STATUS_REQ_ERROR );
+			}
+			
+			/*  Save the mapped Windows NT username for filter logging.  */
+			strlcpy( pContextData->m_achNTUser, pAuth->pszUser, SF_MAX_USERNAME );
+
+			if ( !fAllowed )
+			{
+				/*
+				    This user isn't allowed access.  Indicate this to the server
+				*/
+				SetLastError( ERROR_ACCESS_DENIED );
+				return( SF_STATUS_REQ_ERROR );
+			}
 
 			return( SF_STATUS_REQ_HANDLED_NOTIFICATION );
 	break;
 
     case SF_NOTIFY_LOG:
-
         /*
             The unmapped username is in pFilterContext if this filter
             authenticated this user. FilterContext must be allocated
 		    and valid until the next notification.
         */
-		if ( pfc->pFilterContext )
+		if ( pfc->pFilterContext != NULL )
 		{
-			pContextData = pfc->pFilterContext;
-		
 			pLog = ( HTTP_FILTER_LOG* ) pvData;
+			pContextData = pfc->pFilterContext;
 
-			strcat( pContextData->szLogEntry, " (" );
-			strcat( pContextData->szLogEntry, pLog->pszClientUserName );
-			strcat( pContextData->szLogEntry, ")" );
+			strlcat( pContextData->m_achLogEntry, pContextData->m_achLDAPUser, MAXSTRLEN );
+			strlcat( pContextData->m_achLogEntry, " (Mapped To: ", MAXSTRLEN );
 
-			pLog->pszClientUserName = pContextData->szLogEntry;
+			if ( !stricmp(pContextData->m_achNTUser, "") )
+			{
+				/*  If we do not have a mapped NT user, the LDAP operation failed.  */
+				strlcat( pContextData->m_achLogEntry, "IISLDAPAuth: Filter Error", MAXSTRLEN );
+			}
+			else
+			{
+				strlcat( pContextData->m_achLogEntry, pContextData->m_achNTUser, MAXSTRLEN );
+			}
+			strlcat( pContextData->m_achLogEntry, ")", MAXSTRLEN );
+			pLog->pszClientUserName = pContextData->m_achLogEntry;
 		} 
 
         return( SF_STATUS_REQ_NEXT_NOTIFICATION );
 	break;
 
     default:
-        DebugWrite( "LDAPDEBUG: [HttpFilterProc] Unknown notification type." );
+        DebugWrite( "[HttpFilterProc] Unknown notification type." );
     break;
     }
 
@@ -273,7 +272,7 @@ Return Value:
 
 BOOL
 ValidateUser(
-    CHAR * pszUser, /*  IN/OUT  */
+    CHAR * pszUser,		/*  IN/OUT  */
     CHAR * pszPassword, /*  IN/OUT  */
     BOOL * pfValid		/*  OUT  */
     )
@@ -286,7 +285,7 @@ Routine Description:
 
 Arguments:
 
-    pszUser - The username to validate, will contain the mapped username
+    pszUser		- The username to validate, will contain the mapped username
                   on return.  Must be at least SF_MAX_USERNAME
     pszPassword - The password for this user.  Will contain the mapped
                   password on return.  Must be at least SF_MAX_PASSWORD
@@ -309,20 +308,20 @@ Return Value:
     */
     *pfValid = FALSE;
 
-#ifdef DENYBLANKPASSWORDS
+#ifdef IISLDAPAUTH_DENYBLANKPASSWORDS
 	/*  
 		The Netware eDir server will incorrect allow user to authenticate
 	    as anonymous if you pass a zero-length password.
 	*/
 	if ( !strcmp(pszPassword, "") )
 	{
-		sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User %s Blank Password Denied.", pszUser );
+		sprintf( achLogEntry, "[ValidateUser] User %s blank password denied.", pszUser );
 		DebugWrite( achLogEntry );
 		goto exception;
 	}
 #endif
 
-#ifdef BSTENTERPRISEHACK
+#ifdef IISLDAPAUTH_BSTENTERPRISEHACK
     /*  Hacks for BST Enterprise  */
     if ( !stricmp(pszUser, "bstdba") )
 	{
@@ -331,18 +330,18 @@ Return Value:
 	}
 	else
 	{
-#endif /* BSTENTERPRISEHACK */
+#endif /* IISLDAPAUTH_BSTENTERPRISEHACK */
 
 		if ( !LDAPDB_GetUser(pszUser, &fFound, pszPassword, achNTUser, achNTPassword) )
 		{
-			DebugWrite("LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() failed.");
+			DebugWrite("[ValidateUser] LDAPDB_GetUser() failed.");
 			goto exception;
 		}
 		else
 		{
 			if ( !fFound )
 			{
-				DebugWrite( "LDAPDEBUG: [ValidateUser] LDAPDB_GetUser() returned no record found. User not found or LDAP authentication failed." );
+				DebugWrite( "[ValidateUser] LDAPDB_GetUser() returned no record found. User not found or LDAP authentication failed." );
 			}
 			else
 			{
@@ -352,7 +351,7 @@ Return Value:
 				strlcpy( pszUser, achNTUser, SF_MAX_USERNAME );
 				strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
 
-				sprintf( achLogEntry, "LDAPDEBUG: [ValidateUser] User: %s Password: %s Succeeded.", pszUser, pszPassword );
+				sprintf( achLogEntry, "[ValidateUser] User: %s Password: %s Succeeded.", pszUser, pszPassword );
 				DebugWrite( achLogEntry );
 
 				*pfValid = TRUE;
@@ -360,9 +359,9 @@ Return Value:
 			}
 		}
 
-#ifdef BSTENTERPRISEHACK
+#ifdef IISLDAPAUTH_BSTENTERPRISEHACK
 	}
-#endif /* BSTENTERPRISEHACK */
+#endif /* IISLDAPAUTH_BSTENTERPRISEHACK */
 
 exception:
     return( fResult );

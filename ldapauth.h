@@ -32,16 +32,19 @@
 */
 #define MAXSTRLEN			1024
 #define MODULE_CONF_FILE	"\\ldapauth.ini"	/*  Include beginning backslash  */
-#define DEFAULTUID			"uid"
 #define USER_SEARCH_KEY		"%username%"
 
 /*
 	Compile Options
 */
-#define DENYBLANKPASSWORDS	1
-#define BSTENTERPRISEHACK	1
-#define LDAP_CACHE			1
-#define LDAP_LOGGING		1
+#define IISLDAPAUTH_DEBUG					1
+#define IISLDAPAUTH_DENYBLANKPASSWORDS		1
+#define IISLDAPAUTH_CACHE					1
+#define IISLDAPAUTH_FILE_LOG				1
+/*
+#define IISLDAPAUTH_BSTENTERPRISEHACK		1
+*/
+
 /*
 
 	Visual Studio 2005 includes support for strlcpy() and strlcat().
@@ -53,21 +56,22 @@
 /*
 	Debug Strings
 */
-#ifdef LDAP_LOGGING
+#ifdef IISLDAPAUTH_FILE_LOG
 #define DebugWrite( x ) Log_Write( x, LDAPLOG_DEBUG )
 #else
 #define DebugWrite( x )      /* nothing */
-#endif /* LDAP_LOGGING */
+#endif /* IISLDAPAUTH_FILE_LOG */
 
 
 /*
-	This logging structure is currently not used.
+	Log entry cache
 */
 typedef struct
 {
-    int	iLength;
-    CHAR szLogEntry[ 2 * SF_MAX_USERNAME + 4 ];
-} LDAP_AUTH_CONTEXT;
+    CHAR	m_achLDAPUser[SF_MAX_USERNAME];		/* LDAP username and password */
+    CHAR	m_achNTUser[SF_MAX_USERNAME];		/* Mapped NT username and password */
+	CHAR	m_achLogEntry[MAXSTRLEN];
+} IISLDAPAUTH_CONTEXT;
 
 
 /*
@@ -116,11 +120,11 @@ LDAPDB_Initialize(
 
 BOOL
 LDAPDB_GetUser(
-    CHAR * pszUser,
+    CHAR * pszLDAPUser,
     BOOL * pfFound,
-    CHAR * pszPassword,
+    CHAR * pszLDAPPassword,
     CHAR * pszNTUser,
-    CHAR * pszNTUserPassword
+    CHAR * pszNTPassword
     );
 
 VOID
@@ -131,15 +135,15 @@ LDAPDB_Terminate(
 /*
 	Cache routines
 */
-#ifdef LDAP_CACHE
+#ifdef IISLDAPAUTH_CACHE
 #include "cache.h"
-#endif  /* LDAP_CACHE */
+#endif  /* IISLDAPAUTH_CACHE */
 
 /*
 	Logging routines
 */
-#ifdef LDAP_LOGGING
+#ifdef IISLDAPAUTH_FILE_LOG
 #include "ldapauthlog.h"
-#endif  /* LDAP_LOGGING */
+#endif  /* IISLDAPAUTH_FILE_LOG */
 
 #endif /* _IISLDAPAUTH_H_ */
