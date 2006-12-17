@@ -352,14 +352,14 @@ Return Value:
 			}
 			else
 			{
+				sprintf( achLogEntry, "[ValidateUser] LDAP User %s mapped to: %s.", pszUser, achNTUser );
+				DebugWrite( achLogEntry );
+
 				/*
 					We have a match, map to the NT user and password
 				*/
 				strlcpy( pszUser, achNTUser, SF_MAX_USERNAME );
 				strlcpy( pszPassword, achNTPassword, SF_MAX_PASSWORD );
-
-				sprintf( achLogEntry, "[ValidateUser] User: %s Password: %s Succeeded.", pszUser, pszPassword );
-				DebugWrite( achLogEntry );
 
 				*pfValid = TRUE;
 				fResult = TRUE;
