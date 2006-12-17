@@ -79,7 +79,6 @@ Return Value:
 	CHAR	achRawParam[MAXSTRLEN]			= "";
 	CHAR	achSystemRoot[MAXSTRLEN]		= "";
 	CHAR	achConfigFilePath[MAXSTRLEN]	= "";
-	INT32	liParamIndex					= 0;
 	INT32	liParamLen 						= 0;
 
 	DebugWrite( "[LDAPDB_Initialize] Entering LDAPDB_Initialize()." );
@@ -121,7 +120,6 @@ Return Value:
 		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini line:" );
 		DebugWrite( achLine );
 
-		liParamIndex = 0;
 		liParamLen = strlen( achRawParam );
 		
 		if ( liParamLen == 0 )
@@ -134,16 +132,9 @@ Return Value:
 		}
 
 		/*
-			Substitute underscores for spaces
+			Replace %20 with spaces.
 		*/
-		while ( liParamIndex < liParamLen )
-		{
-			if ( achParam[liParamIndex]=='_' )
-			{
-				achParam[liParamIndex]=' ';
-			}
-			liParamIndex++;
-		}
+		strlreplace( achParam, "%20", " ", MAXSTRLEN );
 
 		/*
 			Check for configuration tokens
@@ -547,10 +538,6 @@ exception:
 	{
 		ldap_unbind_s( ld );
 	}
-
-#ifdef IISLDAPAUTH_FILE_LOG
-	if ( ! bResult ) Log_Flush();
-#endif /* IISLDAPAUTH_FILE_LOG */
 
     return( bResult );
 }
