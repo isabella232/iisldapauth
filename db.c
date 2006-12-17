@@ -42,18 +42,17 @@ CHAR	gach_config_binduser[MAXSTRLEN]			= "";
 CHAR	gach_config_bindpassword[MAXSTRLEN]		= "";
 CHAR	gach_config_ldaphost[MAXSTRLEN]			= "";
 CHAR	gach_config_ldapfilter[MAXSTRLEN]		= "";
-CHAR	gach_config_ldapuid[MAXSTRLEN]			= "";
 CHAR	gach_config_searchbase[MAXSTRLEN]		= "";
 CHAR	gach_config_certsfile[MAXSTRLEN]		= "";
 CHAR	gach_config_ntuser[MAXSTRLEN]			= "";
 CHAR	gach_config_ntuserpassword[MAXSTRLEN]	= "";
-#ifdef LDAP_CACHE
+#ifdef IISLDAPAUTH_CACHE
 UINT32	guli_config_cachesize					= 0;
 UINT32	guli_config_cachetime					= 0;
 #endif
-#ifdef LDAP_LOGGING
+#ifdef IISLDAPAUTH_FILE_LOG
 CHAR	gach_config_logfilepath[MAXSTRLEN]		= "";
-UINT16	gach_config_loglevel					= LDAPLOG_WARNING;
+UINT16	gach_config_loglevel					= LDAPLOG_DEBUG;
 #endif
 
 BOOL
@@ -83,7 +82,7 @@ Return Value:
 	INT32	liParamIndex					= 0;
 	INT32	liParamLen 						= 0;
 
-	DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] Entering LDAPDB_Initialize()." );
+	DebugWrite( "[LDAPDB_Initialize] Entering LDAPDB_Initialize()." );
 
 	/*
 	    First determine the Windows System Root directory.
@@ -102,7 +101,7 @@ Return Value:
     
 	if ( !pfs )
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] Error opening configuration file." );
+		DebugWrite( "[LDAPDB_Initialize] Error opening configuration file." );
 		goto exception;
 	}
 
@@ -116,10 +115,10 @@ Return Value:
 			continue;
 		}
 		
-		/*  Assumption: Since achLine is < MAX_STRING_LEN, achToken & achRawParam are okay  */
+		/*  Assumption: Since achLine is < MAXSTRLEN, achToken & achRawParam are okay  */
 		sscanf( achLine, "%s %s", achToken, achRawParam );               
 		
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini line:" );
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini line:" );
 		DebugWrite( achLine );
 
 		liParamIndex = 0;
@@ -137,21 +136,18 @@ Return Value:
 		/*
 			Substitute underscores for spaces
 		*/
-
 		while ( liParamIndex < liParamLen )
 		{
 			if ( achParam[liParamIndex]=='_' )
 			{
 				achParam[liParamIndex]=' ';
 			}
-
 			liParamIndex++;
 		}
 
 		/*
 			Check for configuration tokens
 		*/
-
 		if ( !stricmp(achToken,"BINDUSER") )
 		{
 			strlcpy( gach_config_binduser, achParam, MAXSTRLEN );
@@ -179,12 +175,6 @@ Return Value:
 		if ( !stricmp(achToken,"LDAPFILTER") )
 		{
 			strlcpy( gach_config_ldapfilter, achParam, MAXSTRLEN );
-			continue;
-		}
-
-		if ( !stricmp(achToken,"LDAPUID") )
-		{
-			strlcpy( gach_config_ldapuid, achParam, MAXSTRLEN );
 			continue;
 		}
 
@@ -218,7 +208,7 @@ Return Value:
 			continue;
 		}
 
-#ifdef LDAP_CACHE
+#ifdef IISLDAPAUTH_CACHE
 		if ( !stricmp(achToken,"CACHESIZE") )
 		{
 			guli_config_cachesize = atoi( achParam );
@@ -230,37 +220,16 @@ Return Value:
 			guli_config_cachetime = atoi( achParam );
 			continue;
 		}
-#endif /* LDAP_CACHE */
+#endif /* IISLDAPAUTH_CACHE */
 
-#ifdef LDAP_LOGGING
+#ifdef IISLDAPAUTH_FILE_LOG
 		if ( !stricmp(achToken,"LOGFILEPATH") )
 		{
 			strlcpy( gach_config_logfilepath, achParam, MAXSTRLEN );
 			continue;
 		}
-
-		if ( !stricmp(achToken,"LOGLEVEL") )
-		{
-			if ( !stricmp(achParam, "debug") )
-			{
-				gach_config_loglevel = LDAPLOG_DEBUG;
-			}
-			else if ( !stricmp(achParam, "info") )
-			{
-				gach_config_loglevel = LDAPLOG_INFORMATIONAL;
-			}
-			else if ( !stricmp(achParam, "critical") )
-			{
-				gach_config_loglevel = LDAPLOG_CRITICAL;
-			}
-			else
-			{
-				gach_config_loglevel = LDAPLOG_WARNING;
-			}
-
-			continue;
-		}
-#endif /* LDAP_LOGGING */
+#endif  /*  IISLDAPAUTH_FILE_LOG  */
+		
 		/*  
 			Do not place any executable statements at end of loop statement.
 			Gratuitous use of continue; statements above.
@@ -269,25 +238,25 @@ Return Value:
 
 	if ( !stricmp(gach_config_ldaphost,"") )
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No LDAPHOST specified." );
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No LDAPHOST specified." );
 		goto exception;
 	}
 
 	if ( !stricmp(gach_config_searchbase,"") )
 	{      
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No SEARCHBASE specified." );
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No SEARCHBASE specified." );
 		goto exception;
 	}
 	
 	if ( !stricmp(gach_config_ldapfilter,"") )
 	{     
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No LDAPFILTER specified." );
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No LDAPFILTER specified." );
 		goto exception;
 	}
 
 	if ( !stricmp(gach_config_ntuser,"") )
 	{  
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No NTUSER specified." );	
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No NTUSER specified." );	
 	}
 
 	//  if a user did not specify a gach_config_certsfile or LDAPPORT, make sure
@@ -295,7 +264,7 @@ Return Value:
 
 	if ( !stricmp(gach_config_certsfile,"") )
 	{	    
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified." );	
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified." );	
 	
 		if ( gi_config_ldapport == 0 )
 		{
@@ -307,27 +276,21 @@ Return Value:
 		gi_config_ldapport = LDAPS_PORT;
 	}
 
-	if ( !stricmp(gach_config_ldapuid, "") )
-	{
-		/*  set default LDAP UID object if none specified  */
-		strlcpy( gach_config_ldapuid, DEFAULTUID, MAXSTRLEN );
-	}
-
-	#ifdef LDAP_CACHE
+	#ifdef IISLDAPAUTH_CACHE
 	if ( !Cache_Initialize(guli_config_cachesize, guli_config_cachetime) )
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_Initialize] Cache initialization failed." );
+		DebugWrite( "[LDAPDB_Initialize] Cache_Initialize() failed." );
 		goto exception;
 	}
-	#endif /* LDAP_CACHE */
+	#endif /* IISLDAPAUTH_CACHE */
 
-	#ifdef LDAP_LOGGING
+	#ifdef IISLDAPAUTH_FILE_LOG
 		if ( stricmp(gach_config_logfilepath, "") ) 
 		{
 			Log_Initialize( gach_config_logfilepath );
 			Log_SetLevel( gach_config_loglevel );
 		}
-	#endif /* LDAP_LOGGING */
+	#endif /* IISLDAPAUTH_FILE_LOG */
 
 	bResult = TRUE;
 
@@ -347,11 +310,11 @@ exception:
 
 BOOL
 LDAPDB_GetUser(
-    CHAR * pszUser,				/*  IN  */
-    BOOL * pfFound,				/*  OUT  */
-    CHAR * pszPassword,			/*  IN  */
-    CHAR * pszNTUser,			/*  IN  */
-    CHAR * pszNTUserPassword	/*  IN  */
+    CHAR * pszLDAPUser,		/*  IN  */
+    BOOL * pfFound,			/*  OUT  */
+    CHAR * pszLDAPPassword,	/*  IN  */
+    CHAR * pszNTUser,		/*  IN  */
+    CHAR * pszNTPassword	/*  IN  */
     )
 /*++
 
@@ -361,20 +324,20 @@ Routine Description:
 	attempts to authenticate with the LDAP server using the DN and
 	the supplied password.
 
-	If LDAP_CACHE is defined, a simple memory cache is queried
+	If IISLDAPAUTH_CACHE is defined, a simple memory cache is queried
 	before going to the network to improve performance.
 
 Arguments:
 
-    pszUserName			- The username to find in the database (case insensitive).
+    pszLDAPUser			- The username to find in the database (case insensitive).
 						  Maximum length is SF_MAX_USERNAME bytes.
     pfFound				- Set to TRUE if the specified LDAP username was 
 						  found in the database 
-    pszPassword			- The external password for the found user. 
+    pszLDAPPassword		- The external password for the found user. 
 						  Maximum length is SF_MAX_PASSWORD bytes.
     pszNTUser			- The NT username associated with this user. 
 						  Maximum length is SF_MAX_USERNAME bytes.
-    pszNTUserPassword	- The password for gach_config_ntuser. 
+    pszNTPassword		- The password for gach_config_ntuser. 
 						  Maximum length is SF_MAX_PASSWORD bytes.
 
 Return Value:
@@ -401,31 +364,31 @@ Return Value:
 	/*
 		Check our parameters
 	*/
-	if ( !(	pszUser != NULL && 
+	if ( !(	pszLDAPUser != NULL && 
 		pfFound != NULL && 
-		pszPassword != NULL && 
+		pszLDAPPassword != NULL && 
 		pszNTUser != NULL && 
-		pszNTUserPassword != NULL) )
+		pszNTPassword != NULL) )
 	{
 		goto exception;
 	}
 
-	if ( strlen(pszUser) > SF_MAX_USERNAME ||
-		strlen(pszPassword) > SF_MAX_PASSWORD ||
+	if ( strlen(pszLDAPUser) > SF_MAX_USERNAME ||
+		strlen(pszLDAPPassword) > SF_MAX_PASSWORD ||
 		strlen(pszNTUser) > SF_MAX_USERNAME ||
-		strlen(pszNTUserPassword) > SF_MAX_PASSWORD )
+		strlen(pszNTPassword) > SF_MAX_PASSWORD )
     {
         goto exception;
     }
 
-#ifdef LDAP_CACHE
+#ifdef IISLDAPAUTH_CACHE
 	/*
 		First check if the user is in the memory cache. This
 		function used to be in ldapauth.c.
 	*/
-	if ( !Cache_GetUser(pszUser, pfFound, pszPassword, pszNTUser, pszNTUserPassword) )
+	if ( !Cache_GetUser(pszLDAPUser, pfFound, pszLDAPPassword, pszNTUser, pszNTPassword) )
 	{
-		DebugWrite( "LDAPDEBUG: [ValidateUser] LookupUserInCache() failed." );
+		DebugWrite( "[LDAPDB_GetUser] Cache_GetUser() failed." );
 		goto exception;
 	}
 
@@ -435,11 +398,11 @@ Return Value:
 			If we found the user in the cache, set the result
 			flag to TRUE and get out of here.
 		*/
-		DebugWrite( "LDAPDEBUG: [ValidateUser] Cache_GetUser() User found." );
+		DebugWrite( "[LDAPDB_GetUser] Cache_GetUser(): User found." );
 		bResult = TRUE;
 		goto exception;
 	}
-#endif /* LDAP_CACHE */
+#endif /* IISLDAPAUTH_CACHE */
 
 	/*  
 		LDAP: Initialize Connection
@@ -448,11 +411,13 @@ Return Value:
 	{
 		ld = ldap_init( gach_config_ldaphost, gi_config_ldapport );
 	}
-	else
+	else /*  SSL configuration  */
 	{
-		if ( ldapssl_client_init(gach_config_certsfile, NULL) != 0 ) 
+		liResult = ldapssl_client_init( gach_config_certsfile, NULL );
+		if ( liResult != 0 ) 
 		{
-			DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] ldapssl_client_init failed." );
+			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_client_init() failed. Result code: %i.", liResult );
+			DebugWrite( achLogEntry );
 			SetLastError( ERROR_BAD_USERNAME );
 			goto exception;
 		}
@@ -463,7 +428,7 @@ Return Value:
 
 	if ( ld == NULL )
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] ldap_init() failed." );
+		DebugWrite( "[LDAPDB_GetUser] ldap_init() failed." );
 		SetLastError( ERROR_BAD_USERNAME );
 		goto exception;
 	}
@@ -476,9 +441,8 @@ Return Value:
 	liResult = ldap_simple_bind_s( ld, gach_config_binduser, gach_config_bindpassword );
 	if ( liResult != LDAP_SUCCESS ) 
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] ldap_simple_bind_s failed." );
-		DebugWrite( gach_config_binduser );
-		
+		sprintf( achLogEntry, "[LDAPDB_GetUser] ldap_simple_bind_s() failed for user %s. Result code: %i.", gach_config_binduser, liResult );
+		DebugWrite( achLogEntry );
 		SetLastError( ERROR_BAD_USERNAME );
 		goto exception;
 	}
@@ -490,23 +454,15 @@ Return Value:
 	*/
 
 	strlcpy( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN );
-	strlreplace( achLDAPquery, USER_SEARCH_KEY, pszUser, MAXSTRLEN );
-
-//	strlcpy( achLDAPquery, "(&(", MAXSTRLEN );					/* achLDAPquery= (&( */
-//	strlcat( achLDAPquery, gach_config_ldapuid, MAXSTRLEN );	/* achLDAPquery= (&(uid */
-//	strlcat( achLDAPquery, "=", MAXSTRLEN );					/* achLDAPquery= (&(uid= */
-//	strlcat( achLDAPquery, pszUser, MAXSTRLEN );				/* achLDAPquery= (&(uid=username */
-//	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username) */
-//	strlcat( achLDAPquery, gach_config_ldapfilter, MAXSTRLEN ); /* achLDAPquery= (&(uid=username)gach_config_ldapfilter */
-//	strlcat( achLDAPquery, ")", MAXSTRLEN );					/* achLDAPquery= (&(uid=username)gach_config_ldapfilter) */
+	strlreplace( achLDAPquery, USER_SEARCH_KEY, pszLDAPUser, MAXSTRLEN );
 
 	liResult = ldap_search_s( ld, gach_config_searchbase, LDAP_SCOPE_SUBTREE, achLDAPquery, NULL, 0, &res );
 
 	if ( liResult != LDAP_SUCCESS )
 	{
-		DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] ldap_search_s failed." );
+		sprintf( achLogEntry, "[LDAPDB_GetUser] ldap_search_s() failed. Result code: %i.", liResult );
+		DebugWrite( achLogEntry );
 		DebugWrite( achLDAPquery );
-
 		SetLastError( ERROR_BAD_USERNAME );
 		goto exception;
 	}
@@ -520,7 +476,12 @@ Return Value:
 		
 		if ( liEntries > 0 ) 
 		{
-			msg = ldap_first_entry( ld,res );
+			if ( liEntries > 1 )
+			{
+				DebugWrite( "[LDAPDB_GetUser] Multiple LDAP records found. Using first one." );
+			}
+
+			msg = ldap_first_entry( ld, res );
 			strlcpy( achLDAPDN, ldap_get_dn(ld,msg), MAXSTRLEN ); 
 
 			/*
@@ -529,34 +490,28 @@ Return Value:
 				the fully qualified DN and supplied password.
 			*/
 
-			liResult = ldap_simple_bind_s( ld, achLDAPDN, pszPassword );
+			liResult = ldap_simple_bind_s( ld, achLDAPDN, pszLDAPPassword );
 
 			if ( liResult != LDAP_SUCCESS ) 
 			{
-#ifdef LDAP_LOGGING
-				sprintf( achLogEntry, "LDAPAUTHFAIL: %s : LDAP Error %i", pszUser, liResult );
-				Log_Write( achLogEntry, 1 );
-#endif /* LDAP_LOGGING */
-
-				DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] LDAP DN Login Failed." );
+				sprintf( achLogEntry, "[LDAPDB_GetUser] LDAP DN login failed for %s. Result code: %i", pszLDAPUser, liResult );
+				DebugWrite( achLogEntry );
 				SetLastError( ERROR_BAD_USERNAME );
 				goto exception;
 			} 
 			else  
 			{
 				*pfFound = TRUE;
-				DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] LDAP DN Login Successful." );			
+				DebugWrite( "[LDAPDB_GetUser] LDAP DN Login Successful." );			
 			}
 		}
 		else 
 		{
-			DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] LDAP DN not found." );
+			DebugWrite( "[LDAPDB_GetUser] LDAP DN not found." );
 			SetLastError( ERROR_BAD_USERNAME );
 			goto exception;
 		}
 	}
-
-	DebugWrite( "LDAPDEBUG: [LDAPDB_GetUser] NT User Authentication." );
 
 	if ( *pfFound )
 	{
@@ -564,19 +519,21 @@ Return Value:
 
 		if ( !strcmp(gach_config_ntuser, "") )
 		{
-			strlcpy( pszNTUser, pszUser, SF_MAX_USERNAME );
+			strlcpy( pszNTUser, pszLDAPUser, SF_MAX_USERNAME );
 		}
 		else
 		{
 			strlcpy( pszNTUser, gach_config_ntuser, SF_MAX_USERNAME );
 		}
 		
-		strlcpy( pszNTUserPassword, gach_config_ntuserpassword, SF_MAX_PASSWORD );
+		strlcpy( pszNTPassword, gach_config_ntuserpassword, SF_MAX_PASSWORD );
 
-		#ifdef LDAP_CACHE
-		/*  Fix: Check for cache full error.  */
-		Cache_AddUser( pszUser, pszPassword, pszNTUser, pszNTUserPassword );
-		#endif /* LDAP_CACHE */
+		#ifdef IISLDAPAUTH_CACHE
+		if ( !Cache_AddUser(pszLDAPUser, pszLDAPPassword, pszNTUser, pszNTPassword) )
+		{
+			DebugWrite( "[LDAPDB_GetUser] Cache_AddUser() failed." );
+		}
+		#endif /* IISLDAPAUTH_CACHE */
 	}
 
 	bResult = TRUE;
@@ -591,9 +548,9 @@ exception:
 		ldap_unbind_s( ld );
 	}
 
-#ifdef LDAP_LOGGING
+#ifdef IISLDAPAUTH_FILE_LOG
 	if ( ! bResult ) Log_Flush();
-#endif /* LDAP_LOGGING */
+#endif /* IISLDAPAUTH_FILE_LOG */
 
     return( bResult );
 }
@@ -615,11 +572,11 @@ Return Value:
 
 --*/
 {
-	#ifdef LDAP_CACHE
+	#ifdef IISLDAPAUTH_CACHE
 	Cache_Terminate();
-	#endif /* LDAP_CACHE */
+	#endif /* IISLDAPAUTH_CACHE */
 
-	#ifdef LDAP_LOGGING
+	#ifdef IISLDAPAUTH_FILE_LOG
 	Log_Terminate();
-	#endif /* LDAP_LOGGING */
+	#endif /* IISLDAPAUTH_FILE_LOG */
 }
