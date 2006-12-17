@@ -145,6 +145,7 @@ Log_Write(
 	if ( gpfsLogFile != NULL && pszLogLine != NULL && liLevel >= gliLevel )
 	{
 		fprintf( gpfsLogFile, "\n%s", pszLogLine ); 
+		fflush( gpfsLogFile );
 		fResult = TRUE;
 	}
 
