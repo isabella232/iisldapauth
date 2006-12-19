@@ -44,6 +44,7 @@ CHAR	gach_config_ldaphost[MAXSTRLEN]			= "";
 CHAR	gach_config_ldapfilter[MAXSTRLEN]		= "";
 CHAR	gach_config_searchbase[MAXSTRLEN]		= "";
 CHAR	gach_config_certsfile[MAXSTRLEN]		= "";
+INT32	gli_config_certsfileformat				= LDAPSSL_CERT_FILETYPE_B64;
 CHAR	gach_config_ntuser[MAXSTRLEN]			= "";
 CHAR	gach_config_ntuserpassword[MAXSTRLEN]	= "";
 #ifdef IISLDAPAUTH_CACHE
@@ -338,6 +339,7 @@ Return Value:
 --*/
 {
 	BOOL		bResult					= FALSE;
+	BOOL		bSSLInit				= FALSE;
 	CHAR		achLDAPquery[MAXSTRLEN]	= "";
 	CHAR		achLDAPDN[MAXSTRLEN]	= "";
 	CHAR		achLogEntry[MAXSTRLEN]	= "";
@@ -404,10 +406,25 @@ Return Value:
 	}
 	else /*  SSL configuration  */
 	{
-		liResult = ldapssl_client_init( gach_config_certsfile, NULL );
+		liResult = ldapssl_client_init( NULL, NULL );
 		if ( liResult != 0 ) 
 		{
 			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_client_init() failed. Result code: %i.", liResult );
+			DebugWrite( achLogEntry );
+			SetLastError( ERROR_BAD_USERNAME );
+			goto exception;
+		}
+		bSSLInit = TRUE;
+
+		/*	
+			ldapssl_client_init() does not accept b64 certificate files.
+			Since I cannot get DER format certificates to work, we now
+			support b64 certificates with the following API call.
+		*/
+		liResult = ldapssl_add_trusted_cert( gach_config_certsfile, gli_config_certsfileformat );
+		if ( liResult != 0 ) 
+		{
+			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_add_trusted_cert() failed. Result code: %i.", liResult );
 			DebugWrite( achLogEntry );
 			SetLastError( ERROR_BAD_USERNAME );
 			goto exception;
@@ -537,6 +554,11 @@ exception:
 	if ( ld != NULL )
 	{
 		ldap_unbind_s( ld );
+	}
+
+	if ( bSSLInit )
+	{
+		ldapssl_client_deinit();
 	}
 
     return( bResult );
