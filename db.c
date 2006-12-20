@@ -80,7 +80,9 @@ Return Value:
 	CHAR	achRawParam[MAXSTRLEN]			= "";
 	CHAR	achSystemRoot[MAXSTRLEN]		= "";
 	CHAR	achConfigFilePath[MAXSTRLEN]	= "";
+	CHAR	achCertFileExtension[MAXSTRLEN] = "";
 	INT32	liParamLen 						= 0;
+	INT32	liCertFilePathLen				= 0;
 
 	DebugWrite( "[LDAPDB_Initialize] Entering LDAPDB_Initialize()." );
 
@@ -110,11 +112,19 @@ Return Value:
 		fgets( achLine, MAXSTRLEN, pfs );
 
 		/* Skip comment lines */
-		if ( achLine[0] == '!' || achLine[0] == '\'' || achLine[0] == '#' ) 
+		if ( achLine[0] == '!' || achLine[0] == '\'' || achLine[0] == '#' || achLine[0] == '\r' || achLine[0] == '\n'  ) 
 		{
 			continue;
 		}
 		
+		/*  
+			sscanf() will leave these variables untouched if the string
+			is invalid. That will end up having us repeat some of the
+			Directive cases below.
+		*/
+		achToken[0] = 0;
+		achRawParam[0] = 0;
+		achParam[0] = 0;
 		/*  Assumption: Since achLine is < MAXSTRLEN, achToken & achRawParam are okay  */
 		sscanf( achLine, "%s %s", achToken, achRawParam );               
 		
@@ -178,6 +188,20 @@ Return Value:
 		
 		if ( !stricmp(achToken,"CERTSFILE") )
 		{
+			liCertFilePathLen = strlen( achParam );
+
+			/*  Strip off the file extension  */
+			if ( liCertFilePathLen > 4 && liCertFilePathLen < MAXSTRLEN )
+			{
+				strncpy( achCertFileExtension, achParam + (liCertFilePathLen - 4), 4 );
+			}
+
+			/*  Check extension, assume b64 if DER extension not found.  */
+			if ( !stricmp(achCertFileExtension, ".der") )
+			{
+				gli_config_certsfileformat = LDAPSSL_CERT_FILETYPE_DER;
+			}
+
 			strlcpy( gach_config_certsfile, achParam, MAXSTRLEN );
 			continue;
 		}
@@ -257,7 +281,7 @@ Return Value:
 	if ( !stricmp(gach_config_certsfile,"") )
 	{	    
 		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified." );	
-	
+
 		if ( gi_config_ldapport == 0 )
 		{
 			gi_config_ldapport = LDAP_PORT;
