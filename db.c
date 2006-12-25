@@ -51,10 +51,6 @@ CHAR	gach_config_ntuserpassword[MAXSTRLEN]	= "";
 UINT32	guli_config_cachesize					= 0;
 UINT32	guli_config_cachetime					= 0;
 #endif
-#ifdef IISLDAPAUTH_FILE_LOG
-CHAR	gach_config_logfilepath[MAXSTRLEN]		= "";
-UINT16	gach_config_loglevel					= LDAPLOG_DEBUG;
-#endif
 
 BOOL
 LDAPDB_Initialize(
@@ -238,14 +234,6 @@ Return Value:
 		}
 #endif /* IISLDAPAUTH_CACHE */
 
-#ifdef IISLDAPAUTH_FILE_LOG
-		if ( !stricmp(achToken,"LOGFILEPATH") )
-		{
-			strlcpy( gach_config_logfilepath, achParam, MAXSTRLEN );
-			continue;
-		}
-#endif  /*  IISLDAPAUTH_FILE_LOG  */
-		
 		/*  
 			Do not place any executable statements at end of loop statement.
 			Gratuitous use of continue; statements above.
@@ -299,14 +287,6 @@ Return Value:
 		goto exception;
 	}
 	#endif /* IISLDAPAUTH_CACHE */
-
-	#ifdef IISLDAPAUTH_FILE_LOG
-		if ( stricmp(gach_config_logfilepath, "") ) 
-		{
-			Log_Initialize( gach_config_logfilepath );
-			Log_SetLevel( gach_config_loglevel );
-		}
-	#endif /* IISLDAPAUTH_FILE_LOG */
 
 	bResult = TRUE;
 
@@ -608,8 +588,4 @@ Return Value:
 	#ifdef IISLDAPAUTH_CACHE
 	Cache_Terminate();
 	#endif /* IISLDAPAUTH_CACHE */
-
-	#ifdef IISLDAPAUTH_FILE_LOG
-	Log_Terminate();
-	#endif /* IISLDAPAUTH_FILE_LOG */
 }
