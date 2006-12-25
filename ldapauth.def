@@ -1,11 +1,8 @@
 LIBRARY LDAPAUTH
 
-DESCRIPTION 'LDAP Authentication for IIS'
-
 EXPORTS
 
     DllMain
-
     HttpFilterProc
     GetFilterVersion
 
