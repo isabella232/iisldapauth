@@ -32,15 +32,12 @@
 				AssemblerListingLocation=".\Release/"
 				ObjectFile=".\Release/"
 				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="TRUE"/>
+				WarningLevel="3"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile=".\Release/ldapauth2.dll"
-				LinkIncremental="1"
-				SuppressStartupBanner="TRUE"
+				OutputFile=".\Release/ldapauth.dll"
 				ModuleDefinitionFile=".\ldapauth.def"
 				ProgramDatabaseFile=".\Release/ldapauth.pdb"
 				SubSystem="2"
@@ -95,15 +92,12 @@
 				ProgramDataBaseFileName=".\Debug/"
 				BrowseInformation="1"
 				WarningLevel="4"
-				SuppressStartupBanner="TRUE"
 				DebugInformationFormat="4"/>
 			<Tool
 				Name="VCCustomBuildTool"/>
 			<Tool
 				Name="VCLinkerTool"
-				OutputFile=".\Debug/ldapauth2_debug.dll"
-				LinkIncremental="1"
-				SuppressStartupBanner="TRUE"
+				OutputFile=".\Debug/ldapauth.dll"
 				ModuleDefinitionFile=".\ldapauth.def"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\Debug/ldapauth.pdb"
@@ -205,6 +199,9 @@
 			</File>
 			<File
 				RelativePath="ldapauth.h">
+			</File>
+			<File
+				RelativePath=".\ldapauth_global.h">
 			</File>
 			<File
 				RelativePath=".\ldapauthlog.c">
