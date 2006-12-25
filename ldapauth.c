@@ -61,10 +61,16 @@ DllMain(
     switch ( fdwReason )
     {
 		case DLL_PROCESS_ATTACH:
+			#ifdef IISLDAPAUTH_DEBUG
+			#ifdef IISLDAPAUTH_FILE_LOG
+			Log_Initialize( NULL );
+			DebugWrite("[DllMain] Received DLL_PROCESS_ATTACH event.");
+			#endif /*  IISLDAPAUTH_FILE_LOG  */
+			#endif /*  IISLDAPAUTH_DEBUG  */
 
 			if ( !LDAPDB_Initialize() )
 			{
-				DebugWrite("[GetFilterVersion] LDAPDB_Initialize() failed.");
+				DebugWrite("[DllMain] LDAPDB_Initialize() failed.");
 				goto exception;
 			}
 
@@ -77,6 +83,13 @@ DllMain(
 
 		case DLL_PROCESS_DETACH:
 			LDAPDB_Terminate();
+
+			#ifdef IISLDAPAUTH_DEBUG
+			#ifdef IISLDAPAUTH_FILE_LOG
+			DebugWrite("[DllMain] Received DLL_PROCESS_DETACH event.");
+			Log_Terminate();
+			#endif /*  IISLDAPAUTH_FILE_LOG  */
+			#endif /*  IISLDAPAUTH_DEBUG  */
         break;
 
 		default:
@@ -123,7 +136,9 @@ GetFilterVersion(
                      SF_NOTIFY_LOG                |
                      SF_NOTIFY_ORDER_HIGH);
 
-    strlcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter, version 2.0a1", SF_MAX_FILTER_DESC_LEN );
+    strlcpy( pVer->lpszFilterDesc, "IIS LDAP Authentication Filter 2.0", SF_MAX_FILTER_DESC_LEN );
+
+	DebugWrite("[GetFilterVersion] IIS LDAP Authentication Filter 2.0.");
 
     return( TRUE );
 }
