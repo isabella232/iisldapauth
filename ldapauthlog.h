@@ -38,6 +38,8 @@
 #define LDAPLOG_WARNING			20
 #define LDAPLOG_CRITICAL		30
 #define LDAPLOG_DEBUG			0
+#define LDAPLOG_DEFAULTFILE		"\\ldapauth2.log"	/*  Include beginning backslash  */
+#define LDAPLOG_MAXSTRLEN		1024
 
 BOOL
 Log_Initialize(

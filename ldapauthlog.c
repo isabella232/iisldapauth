@@ -23,6 +23,8 @@
 
 --*/
 
+#include <stdio.h>
+#include "string_safe.h"
 #include "ldapauthlog.h"
 
 /*
@@ -53,7 +55,8 @@ Log_Initialize(
 
 --*/
 {
-	BOOL fResult = FALSE;
+	BOOL	fResult = FALSE;
+	CHAR	achDefaultPath[LDAPLOG_MAXSTRLEN] = "";
 
 	if ( gpfsLogFile != NULL ) goto exception;
 
@@ -62,15 +65,25 @@ Log_Initialize(
 
 	if ( pszLogPath != NULL )
 	{
-		gpfsLogFile = fopen( pszLogPath, "a" );
-
-		if ( gpfsLogFile != NULL )
+		gpfsLogFile = fopen( pszLogPath, "a+" );
+	}
+	else
+	{
+		if ( GetEnvironmentVariableA( "SystemDrive", achDefaultPath, LDAPLOG_MAXSTRLEN ) )
 		{
-			fprintf( gpfsLogFile, "%s", "\n----------------------------" ); 
-			fprintf( gpfsLogFile, "%s", "\nIIS LDAP Auth: Module Loaded" ); 
-			fflush( gpfsLogFile );
-			fResult = TRUE;
+			strlcat( achDefaultPath, LDAPLOG_DEFAULTFILE, LDAPLOG_MAXSTRLEN );
 		}
+
+		gpfsLogFile = fopen( achDefaultPath, "a+" );
+	}
+
+	if ( gpfsLogFile != NULL )
+	{
+		fprintf( gpfsLogFile, "%s", "\n----------------------------------" ); 
+		fprintf( gpfsLogFile, "%s", "\nIIS LDAP Authentication Filter 2.0" ); 
+		fprintf( gpfsLogFile, "%s", "\n[Log_Initialize]: Log_Initialize()." ); 
+		fflush( gpfsLogFile );
+		fResult = TRUE;
 	}
 
 	LeaveCriticalSection( &gsLogLock );
