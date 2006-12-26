@@ -1,6 +1,6 @@
 IIS LDAP Authentication Filter
-Version  2.0 Alpha Release Notes
-Updated: 12/19/2006
+Version  2.0 Release Notes
+Updated: 12/25/2006
 Author:  Ram Rajadhyaksha
 ---------------------------------------------------------------
 IMPORTANT NOTES
@@ -23,10 +23,31 @@ http://developer.novell.com/wiki/index.php/LDAP_Libraries_for_C
 ---------------------------------------------------------------
 CHANGE LOG
 
+December 25, 2006:
+
+SSL support now reads both DER and base-64 format certificates.
+
+Fixed problem with duplicate thread calls to 
+ldapssl_client_init().
+
+Logging support is included in the debug DLL only. It has been
+tested in IIS6 with success. If you want to use the debug
+version for logging, make sure an empty text file 
+"ldapauth.log" is created on the system drive (e.g. C:\). The 
+log file must have permissions so the web server process can 
+write entries. The simplest way to do this is to allow the 
+"Everyone" group read/write privileges. Do not do this for 
+production environments!
+
+The LOGFILE directive is no longer valid. Please remove it from
+your configuration file.
+
+
 December 19, 2006: 
 
 Released with working SSL support. SSL requires a base-64 
 format certificate. Read Section 3 of the documentation.
+
 
 December 17, 2006:
 
