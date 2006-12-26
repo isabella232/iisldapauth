@@ -27,6 +27,7 @@
 
 */
 
+#include <stdio.h>
 #include ".\novell-cldap\Win32\inc\ldap.h"
 #include ".\novell-cldap\Win32\inc\ldap_ssl.h"
 #include ".\novell-cldap\Win32\inc\lber.h"

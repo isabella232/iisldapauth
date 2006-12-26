@@ -26,8 +26,8 @@
 
 --*/
 
+#include <stdio.h>
 #include "ldapauth.h"
-
 
 BOOL
 WINAPI
