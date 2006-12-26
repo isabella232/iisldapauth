@@ -109,10 +109,13 @@ Return Value:
 
     while ( ! feof(pfs) )
 	{
+		achLine[0] = 0; /*  For some reason, fgets() doesn't detect EOF early enough
+						    and we end up looping one extra time. Clear this out first.  */
+
 		fgets( achLine, MAXSTRLEN, pfs );
 
-		/* Skip comment lines */
-		if ( achLine[0] == '!' || achLine[0] == '\'' || achLine[0] == '#' || achLine[0] == '\r' || achLine[0] == '\n'  ) 
+		/* Skip comment lines, NULL, or CRLF */
+		if ( achLine[0] == 0 || achLine[0] == '!' || achLine[0] == '\'' || achLine[0] == '#' || achLine[0] == '\r' || achLine[0] == '\n'  ) 
 		{
 			continue;
 		}
@@ -200,6 +203,11 @@ Return Value:
 			if ( !stricmp(achCertFileExtension, ".der") )
 			{
 				gli_config_certsfileformat = LDAPSSL_CERT_FILETYPE_DER;
+				DebugWrite( "[LDAPDB_Initialize] DER format certificate specified." );
+			}
+			else
+			{
+				DebugWrite( "[LDAPDB_Initialize] BASE64 format certificate specified or assumed." );
 			}
 
 			strlcpy( gach_config_certsfile, achParam, MAXSTRLEN );
@@ -265,6 +273,12 @@ Return Value:
 	if ( !stricmp(gach_config_ntuser,"") )
 	{  
 		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No NTUSER specified." );	
+	}
+
+	if ( !stricmp(gach_config_ntuserpassword,"") )
+	{  
+		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No NTPASSWORD specified." );	
+		goto exception;
 	}
 
 	/*
