@@ -38,6 +38,7 @@
 	These are read from the ldapauth.ini file.
 */
 
+BOOL	gf_SSL_client_init						= FALSE;
 INT16	gi_config_ldapport						= 0;
 CHAR	gach_config_binduser[MAXSTRLEN]			= "";
 CHAR	gach_config_bindpassword[MAXSTRLEN]		= "";
@@ -78,8 +79,10 @@ Return Value:
 	CHAR	achSystemRoot[MAXSTRLEN]		= "";
 	CHAR	achConfigFilePath[MAXSTRLEN]	= "";
 	CHAR	achCertFileExtension[MAXSTRLEN] = "";
+	CHAR	achLogEntry[MAXSTRLEN]			= "";
 	INT32	liParamLen 						= 0;
 	INT32	liCertFilePathLen				= 0;
+	INT32	liResult						= 0;
 
 	DebugWrite( "[LDAPDB_Initialize] Entering LDAPDB_Initialize()." );
 
@@ -264,11 +267,15 @@ Return Value:
 		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No NTUSER specified." );	
 	}
 
-	//  if a user did not specify a gach_config_certsfile or LDAPPORT, make sure
-	//  the default port is set correctly
+	/*
+		Ff a user did not specify a gach_config_certsfile 
+		or LDAPPORT, make sure the default port is set correctly
+	*/
 
 	if ( !stricmp(gach_config_certsfile,"") )
-	{	    
+	{
+		/*  SSL not enabled  */
+
 		DebugWrite( "[LDAPDB_Initialize] ldapauth.ini: No CERTSFILE specified." );	
 
 		if ( gi_config_ldapport == 0 )
@@ -276,9 +283,39 @@ Return Value:
 			gi_config_ldapport = LDAP_PORT;
 		}
 	}
-	else if ( gi_config_ldapport == 0 )
+	else 
 	{
-		gi_config_ldapport = LDAPS_PORT;
+		/*  SSL enabled  */
+
+		if ( gi_config_ldapport == 0 )
+		{
+			gi_config_ldapport = LDAPS_PORT;
+		}
+
+		/*  Initialize SSL client - only do this once, not per session  */
+
+		liResult = ldapssl_client_init( NULL, NULL );
+		if ( liResult != 0 ) 
+		{
+			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_client_init() failed. Result code: %i.", liResult );
+			DebugWrite( achLogEntry );
+			goto exception;
+		}
+
+		gf_SSL_client_init = TRUE;
+
+		/*	
+			ldapssl_client_init() does not accept b64 certificate files.
+			Since I cannot get DER format certificates to work, we now
+			support b64 certificates with the following API call.
+		*/
+		liResult = ldapssl_add_trusted_cert( gach_config_certsfile, gli_config_certsfileformat );
+		if ( liResult != 0 ) 
+		{
+			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_add_trusted_cert() failed. Result code: %i.", liResult );
+			DebugWrite( achLogEntry );
+			goto exception;
+		}
 	}
 
 	#ifdef IISLDAPAUTH_CACHE
@@ -299,6 +336,12 @@ exception:
 	if ( pfs != 0 )
 	{
 		fclose( pfs );  
+	}
+
+	if ( !bResult && gf_SSL_client_init )
+	{
+		ldapssl_client_deinit();
+		gf_SSL_client_init = FALSE;
 	}
 
 	return( bResult );
@@ -344,7 +387,6 @@ Return Value:
 --*/
 {
 	BOOL		bResult					= FALSE;
-	BOOL		bSSLInit				= FALSE;
 	CHAR		achLDAPquery[MAXSTRLEN]	= "";
 	CHAR		achLDAPDN[MAXSTRLEN]	= "";
 	CHAR		achLogEntry[MAXSTRLEN]	= "";
@@ -411,37 +453,13 @@ Return Value:
 	}
 	else /*  SSL configuration  */
 	{
-		liResult = ldapssl_client_init( NULL, NULL );
-		if ( liResult != 0 ) 
-		{
-			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_client_init() failed. Result code: %i.", liResult );
-			DebugWrite( achLogEntry );
-			SetLastError( ERROR_BAD_USERNAME );
-			goto exception;
-		}
-		bSSLInit = TRUE;
-
-		/*	
-			ldapssl_client_init() does not accept b64 certificate files.
-			Since I cannot get DER format certificates to work, we now
-			support b64 certificates with the following API call.
-		*/
-		liResult = ldapssl_add_trusted_cert( gach_config_certsfile, gli_config_certsfileformat );
-		if ( liResult != 0 ) 
-		{
-			sprintf( achLogEntry, "[LDAPDB_GetUser] ldapssl_add_trusted_cert() failed. Result code: %i.", liResult );
-			DebugWrite( achLogEntry );
-			SetLastError( ERROR_BAD_USERNAME );
-			goto exception;
-		}
-
 		/* Last parameter (the 1) is to specify a secure connection. */
 		ld = ldapssl_init( gach_config_ldaphost, gi_config_ldapport, 1 );
 	}
 
 	if ( ld == NULL )
 	{
-		DebugWrite( "[LDAPDB_GetUser] ldap_init() failed." );
+		DebugWrite( "[LDAPDB_GetUser] ldap_init() or ldapssl_init() failed." );
 		SetLastError( ERROR_BAD_USERNAME );
 		goto exception;
 	}
@@ -561,11 +579,6 @@ exception:
 		ldap_unbind_s( ld );
 	}
 
-	if ( bSSLInit )
-	{
-		ldapssl_client_deinit();
-	}
-
     return( bResult );
 }
 
@@ -586,6 +599,12 @@ Return Value:
 
 --*/
 {
+	if ( gf_SSL_client_init )
+	{
+		ldapssl_client_deinit();
+		gf_SSL_client_init = FALSE;
+	}
+
 	#ifdef IISLDAPAUTH_CACHE
 	Cache_Terminate();
 	#endif /* IISLDAPAUTH_CACHE */
