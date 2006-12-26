@@ -24,7 +24,10 @@
 
 #ifndef _IISLDAPAUTHCACHE_H_
 #define _IISLDAPAUTHCACHE_H_
+
+#include <windows.h>
 #include <httpfilt.h>
+#include "ldapauth_global.h"
 
 /*
 	CONSTANTS

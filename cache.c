@@ -28,11 +28,6 @@
 
 --*/
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <windows.h>
-#include "string_safe.h"
 #include "cache.h"
 
 /*
@@ -90,11 +85,13 @@ Return Value:
 	   )
 	{
 		guliCacheSize = DEFAULT_CACHE_USERS;
+		DebugWrite( "[Cache_Initialize] Invalid Cache Size. Using DEFAULT_CACHE_USERS value." );
 	}
 
 	if ( guliCacheTime > MAX_CACHE_TIME )
 	{
-		guliCacheTime = DEFAULT_CACHE_TIME;
+		guliCacheTime = MAX_CACHE_TIME;
+		DebugWrite( "[Cache_Initialize] Invalid Cache Time. Using DEFAULT_CACHE_TIME value." );
 	}
 
     gpCache = LocalAlloc( LPTR, sizeof(SUSER_CACHE) * guliCacheSize );
@@ -201,6 +198,7 @@ Return Value:
 				if ( uliSeconds > guliCacheTime )
 				{
 					gpCache[uliIndex].m_lliTimestamp = 0;
+					DebugWrite( "[Cache_GetUser] User found but record has expired. Invalidating record." );
 					break;
 				}
 
@@ -209,6 +207,7 @@ Return Value:
 			else
 			{
 				gpCache[uliIndex].m_lliTimestamp = 0;
+				DebugWrite( "[Cache_GetUser] User found but password is different. Invalidating record." );
 				break;				
 			}
 		}
@@ -220,6 +219,7 @@ Return Value:
 
 	if ( !fFound )
 	{	
+		DebugWrite( "[Cache_GetUser] No valid user cache record found." );
 	}
 	else
 	{
