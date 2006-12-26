@@ -25,10 +25,8 @@
 #ifndef _IISLDAPAUTHLOG_H_
 #define _IISLDAPAUTHLOG_H_
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <windows.h>
+#include "ldapauth_global.h"
 
 /*
 	CONSTANTS
@@ -39,7 +37,6 @@
 #define LDAPLOG_CRITICAL		30
 #define LDAPLOG_DEBUG			0
 #define LDAPLOG_DEFAULTFILE		"\\ldapauth2.log"	/*  Include beginning backslash  */
-#define LDAPLOG_MAXSTRLEN		1024
 
 BOOL
 Log_Initialize(

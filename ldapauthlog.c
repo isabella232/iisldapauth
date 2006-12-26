@@ -24,7 +24,6 @@
 --*/
 
 #include <stdio.h>
-#include "string_safe.h"
 #include "ldapauthlog.h"
 
 /*
@@ -56,7 +55,7 @@ Log_Initialize(
 --*/
 {
 	BOOL	fResult = FALSE;
-	CHAR	achDefaultPath[LDAPLOG_MAXSTRLEN] = "";
+	CHAR	achDefaultPath[MAXSTRLEN] = "";
 
 	if ( gpfsLogFile != NULL ) goto exception;
 
@@ -69,9 +68,9 @@ Log_Initialize(
 	}
 	else
 	{
-		if ( GetEnvironmentVariableA( "SystemDrive", achDefaultPath, LDAPLOG_MAXSTRLEN ) )
+		if ( GetEnvironmentVariableA( "SystemDrive", achDefaultPath, MAXSTRLEN ) )
 		{
-			strlcat( achDefaultPath, LDAPLOG_DEFAULTFILE, LDAPLOG_MAXSTRLEN );
+			strlcat( achDefaultPath, LDAPLOG_DEFAULTFILE, MAXSTRLEN );
 		}
 
 		gpfsLogFile = fopen( achDefaultPath, "a+" );
