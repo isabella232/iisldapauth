@@ -232,6 +232,12 @@
 		<File
 			RelativePath="ldapauth.def">
 		</File>
+		<File
+			RelativePath=".\ldapauth.rc">
+		</File>
+		<File
+			RelativePath=".\resource.h">
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
