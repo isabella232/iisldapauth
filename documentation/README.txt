@@ -1,5 +1,5 @@
 IIS LDAP Authentication Filter
-Version  2.0 Release Notes
+Version  2.0 (Pre-release Build 3) Release Notes
 Updated: 12/25/2006
 Author:  Ram Rajadhyaksha
 ---------------------------------------------------------------
