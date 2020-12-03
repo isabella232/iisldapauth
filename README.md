@@ -2,6 +2,12 @@
 
 imported from https://sourceforge.net/projects/iisldapauth/
 
+# Installation
+
+- [Instalation Documentation](documentation/INSTALL.md)
+- [Usage Documentation](documentation/IIS%20LDAP%20Authentication%20Filter%20Documentation.odt)
+
+
 # IIS LDAP Authentication Filter
 
 Version  2.0 (Pre-release Build 3) Release Notes
