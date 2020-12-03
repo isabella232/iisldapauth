@@ -25,11 +25,7 @@ Please read the documentation completely before installing
 the software. This software requires the Microfocus Novell C LDAP SDK. 
 The Novell package can be downloaded at:
 
-the old url archive:
-https://web.archive.org/web/20100716031219/http://developer.novell.com/wiki/index.php/LDAP_Libraries_for_C
-
-the new one:
-https://www.microfocus.com/documentation/edirectory-developer-documentation/ldap-libraries-for-c/
+[http://developer.novell.com/wiki/index.php/LDAP_Libraries_for_C](https://www.microfocus.com/documentation/edirectory-developer-documentation/ldap-libraries-for-c/)
 
 ---------------------------------------------------------------
 # CHANGE LOG
