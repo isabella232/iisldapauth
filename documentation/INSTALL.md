@@ -2,7 +2,7 @@
 
 Updated Notes, 11/24/2002 - Ram Rajadhyaksha
 
-IMPORTANT NOTES AND CHANGES
+***IMPORTANT NOTES AND CHANGES***
 
 1. This IIS module requires the Sun iPlanet (Netscape) LDAP SDK. You can
    download the SDK from:
