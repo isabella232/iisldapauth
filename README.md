@@ -22,11 +22,10 @@ Specifically, the LDAPFILTER directive now requires a full
 LDAP syntax query.
 
 Please read the documentation completely before installing
-the software. This software requires the Novell C LDAP SDK. 
+the software. This software requires the Microfocus Novell C LDAP SDK. 
 The Novell package can be downloaded at:
 
-http://developer.novell.com/wiki/index.php/LDAP_Libraries_for_C
-
+https://www.microfocus.com/documentation/edirectory-developer-documentation/ldap-libraries-for-c/
 
 ---------------------------------------------------------------
 # CHANGE LOG
