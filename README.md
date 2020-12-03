@@ -10,10 +10,7 @@ imported from https://sourceforge.net/projects/iisldapauth/
 
 # IIS LDAP Authentication Filter
 
-Version  2.0 (Pre-release Build 3) Release Notes
-Updated: 12/25/2006
-Author:  Ram Rajadhyaksha
----------------------------------------------------------------
+IIS LDAP Auth provides LDAP authentication functionality to the Microsoft Internet Information Server (IIS) with an ISAPI-compliant DLL.
 
 # IMPORTANT NOTES
 
@@ -34,6 +31,11 @@ http://developer.novell.com/wiki/index.php/LDAP_Libraries_for_C
 
 ---------------------------------------------------------------
 # CHANGE LOG
+
+Version  2.0 (Pre-release Build 3) Release Notes
+Updated: 12/25/2006
+Author:  Ram Rajadhyaksha
+---------------------------------------------------------------
 
 ## December 25, 2006:
 
