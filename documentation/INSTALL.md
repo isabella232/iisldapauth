@@ -1,4 +1,4 @@
-LDAP Auth ISAPI Module 
+# LDAP Auth ISAPI Module 
 
 Updated Notes, 11/24/2002 - Ram Rajadhyaksha
 
@@ -30,7 +30,7 @@ IMPORTANT NOTES AND CHANGES
    parameter at this time.
    
    
-INSTALLATION INSTRUCTIONS
+# INSTALLATION INSTRUCTIONS
 
 1. Copy iPlanet SDK DLLs to C:\WINNT\SYSTEM32. At a minimum, you will 
    need to copy the following files:
@@ -86,7 +86,7 @@ INSTALLATION INSTRUCTIONS
 5. Test and pray it works. Good luck.
 
 
-TROUBLESHOOTING
+# TROUBLESHOOTING
 
 It is very likely something will not work the first time you install the
 module. Make sure you check the following:
@@ -117,7 +117,7 @@ module. Make sure you check the following:
    password.
    
    
-BUILD INSTRUCTIONS
+# BUILD INSTRUCTIONS
 
 1. Get a copy of Visual C++ 6.0. You will need Service Pack 5.
 
@@ -129,7 +129,7 @@ BUILD INSTRUCTIONS
 4. Build.
 
 
-DEBUG INSTRUCTIONS
+# DEBUG INSTRUCTIONS
 
 Debugging the ISAPI library is a bit tricky. You must first attach to the
 IIS server, start the WWW handler, and then set your break points. The
@@ -156,7 +156,7 @@ function will not work with system processes.
 6. Set your break points.
 
 
-Future Enhancements
+# Future Enhancements
 -------------------------------------------------------------------------------
 1. Multiple LDAP servers for fail-over.
 2. Make the memory cache not suck.
@@ -172,7 +172,7 @@ ramr@inflectiontech.com
 
 
 
--------- IISLdapAuth -------
+# IISLdapAuth ISAPI filter
 
 This is the distribution of an ISAPI filter which authenticates users 
 against an ldap server.
@@ -199,6 +199,5 @@ If it works for you, great! If not, great too!
 
 
 Salvador Salanova Fortmann
------------ LdapFilter -------
 
 -------------------------------------------------------------------------------
