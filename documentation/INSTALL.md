@@ -7,7 +7,7 @@ IMPORTANT NOTES AND CHANGES
 1. This IIS module requires the Sun iPlanet (Netscape) LDAP SDK. You can
    download the SDK from:
 
-   https://github.com/dogtagpki/ldap-sdk 
+   [http://softeval.sun.com/NASApp/iplanetdownload/Download?release_id=5176-21](https://github.com/dogtagpki/ldap-sdk)
 
 2. SSL support does not work. The LDAP library returns an error whenever
    we attempt to bind using SSL. If anyone can figure out what the deal is,
