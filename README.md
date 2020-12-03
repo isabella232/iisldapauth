@@ -1,12 +1,11 @@
 # IIS LDAP Auth ISAPI Module Fork 
 
-imported from https://sourceforge.net/projects/iisldapauth/
+Project imported from https://sourceforge.net/projects/iisldapauth/
 
 # Installation
 
-- [Instalation Documentation](documentation/INSTALL.md)
+- [Instalation instruction](documentation/INSTALL.md)
 - [Usage Documentation](documentation/IIS%20LDAP%20Authentication%20Filter%20Documentation.odt)
-
 
 # IIS LDAP Authentication Filter
 
